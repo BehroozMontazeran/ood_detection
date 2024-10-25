@@ -3,9 +3,9 @@
 import json
 import torch
 
-from models.glow_model.datasets import get_CIFAR10, get_SVHN
+from data.datasets import get_cifar10, get_svhn
 from models.glow_model.model import Glow
-from utils.routs import OUTPUT_DIR
+from utilities.routes import OUTPUT_DIR
 
 
 class LoadModels:
@@ -25,13 +25,13 @@ class LoadModels:
             hparams = json.load(json_file)
 
         if fit_dataset_name == 'cifar10':
-            image_shape, num_classes, fit_train_ds, fit_test_ds = get_CIFAR10(hparams['augment'], hparams['dataroot'], hparams['download'])
+            image_shape, num_classes, fit_train_ds, fit_test_ds = get_cifar10(hparams['augment'], hparams['dataroot'], hparams['download'])
             if test_dataset_name == 'svhn':
-                image_shape, num_classes, test_train_ds, test_test_ds = get_SVHN(hparams['augment'], hparams['dataroot'], hparams['download'])
+                image_shape, num_classes, test_train_ds, test_test_ds = get_svhn(hparams['augment'], hparams['dataroot'], hparams['download'])
         elif fit_dataset_name == 'svhn':
-            image_shape, num_classes, fit_train_ds, fit_test_ds = get_SVHN(hparams['augment'], hparams['dataroot'], hparams['download'])
+            image_shape, num_classes, fit_train_ds, fit_test_ds = get_svhn(hparams['augment'], hparams['dataroot'], hparams['download'])
             if test_dataset_name == 'cifar10':
-                image_shape, num_classes, test_train_ds, test_test_ds = get_CIFAR10(hparams['augment'], hparams['dataroot'], hparams['download'])
+                image_shape, num_classes, test_train_ds, test_test_ds = get_cifar10(hparams['augment'], hparams['dataroot'], hparams['download'])
         else:
             raise ValueError(f"Dataset name {fit_dataset_name} or {test_dataset_name} not recognized.")
 

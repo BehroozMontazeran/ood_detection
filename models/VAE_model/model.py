@@ -1,6 +1,6 @@
 from generative_model import GenerativeModel
 from path_definitions import VAE_ROOT
-from data.utils import to_dataset_wrapper
+from utilities.utils import to_dataset_wrapper
 
 from os import path
 
@@ -13,7 +13,7 @@ import json
 # from torchvision import datasets, transforms
 from itertools import chain
 
-from data.datasets import get_FashionMNIST, get_CIFAR10, get_SVHN, get_celeba, get_imagenet32
+from data.datasets import get_fashionmnist, get_cifar10, get_svhn, get_celeba, get_imagenet32
 
 import matplotlib.pyplot as plt
 

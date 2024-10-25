@@ -4,4 +4,8 @@ data
 output
 trained_models
 .ipynb_checkpoints
-output_0
+output_*
+*.toml
+glow_model_
+test.ipynb
+__pycache__

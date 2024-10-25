@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 from ood_scores.scores.g_nll import OodScores
-from utils.routs import OUTPUT_DIR, PathCreator
+from utilities.routes import OUTPUT_DIR, PathCreator
 
 
 class OodScoresExtractor(OodScores):
@@ -59,6 +59,18 @@ class OodScoresExtractor(OodScores):
             ood_scores_test_samples.append(self.ood_score(samples, means, variances))
         return ood_scores_test_samples, ds_name
 
+class GenerativeModel:
+    """Provides a standard interface for anomaly_methods code to interact with all types of models."""
+
+    def eval_nll(self, x):
+        raise NotImplementedError()
+
+    def generate_sample(self, batch_size):
+        raise NotImplementedError()
+
+    @staticmethod
+    def load_serialised(model_name):
+        raise NotImplementedError()
 
         # # Define DataLoader for the test set
         # random_indices = random.sample(range(len(test_cifar)), num_samples)

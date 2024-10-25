@@ -1,22 +1,39 @@
+""" Training script for Glow"""
+
 import argparse
-import os
 import json
-import shutil
+import os
 import random
+import shutil
 from itertools import islice
 
 import torch
 import torch.nn.functional as F
-import torch.optim as optim
-import torch.utils.data as data
-
 from ignite.contrib.handlers import ProgressBar
 from ignite.engine import Engine, Events
 from ignite.handlers import ModelCheckpoint, Timer
-from ignite.metrics import RunningAverage, Loss
+from ignite.metrics import Loss, RunningAverage
 
-from datasets import get_CIFAR10, get_SVHN
-from model import Glow
+# import torch.optim as optim
+from torch import optim
+
+# import torch.utils.data as data
+from torch.utils import data
+
+from models.glow_model.model import Glow
+from utilities.utils import to_dataset_wrapper
+from utilities.routes import DATAROOT
+
+# from data.datasets import (
+#     get_CIFAR10,
+#     get_SVHN,
+#     get_imagenet32,
+#     get_celeba,
+#     get_MNIST,
+#     get_FashionMNIST,
+# )
+
+
 
 
 def check_manual_seed(seed):
@@ -24,16 +41,46 @@ def check_manual_seed(seed):
     random.seed(seed)
     torch.manual_seed(seed)
 
-    print("Using seed: {seed}".format(seed=seed))
+    print(f"Using seed: {seed}")
 
 
-def check_dataset(dataset, dataroot, augment, download):
-    if dataset == "cifar10":
-        cifar10 = get_CIFAR10(augment, dataroot, download)
-        input_size, num_classes, train_dataset, test_dataset = cifar10
-    if dataset == "svhn":
-        svhn = get_SVHN(augment, dataroot, download)
-        input_size, num_classes, train_dataset, test_dataset = svhn
+# def check_dataset(dataset, dataroot, augment, download):
+#     # if dataset == "cifar10":
+#     #     cifar10 = get_CIFAR10(augment, dataroot, download)
+#     #     input_size, num_classes, train_dataset, test_dataset = cifar10
+#     # elif dataset == "svhn":
+#     #     svhn = get_SVHN(augment, dataroot, download)
+#     #     input_size, num_classes, train_dataset, test_dataset = svhn
+#     # elif dataset == "imagenet32":
+#     #     input_size, num_classes, train_dataset, test_dataset = get_imagenet32(dataroot)
+#     # elif dataset == "celeba":
+#     #     input_size, num_classes, train_dataset, test_dataset = get_celeba(dataroot)
+#     # elif dataset == "MNIST":
+#     #     input_size, num_classes, train_dataset, test_dataset = get_MNIST(dataroot)
+#     # elif dataset == "FashionMNIST":
+#     #     input_size, num_classes, train_dataset, test_dataset = get_FashionMNIST(
+#     #         dataroot
+#     #     )
+#     if dataset in to_dataset_wrapper:
+#         dataset_wrapper = to_dataset_wrapper[dataset]
+#         input_size, num_classes, train_dataset, test_dataset = dataset_wrapper.get_all(dataroot)
+#     else:
+#         raise ValueError("unrecognised dataset:", dataset)
+
+#     return input_size, num_classes, train_dataset, test_dataset
+def check_dataset(dataset, dataroot, transform=None, augment=True, download=True):
+    """Check if the dataset is valid and return its details."""
+
+    if dataset in to_dataset_wrapper:
+        # Retrieve the dataset wrapper class
+        dataset_wrapper = to_dataset_wrapper[dataset]
+
+        # Call the get_all method on the wrapper class
+        input_size, num_classes, train_dataset, test_dataset = dataset_wrapper.get_all(
+            dataroot, transform=transform, augment=augment, download=download)
+
+    else:
+        raise ValueError(f"Unrecognized dataset: {dataset}")
 
     return input_size, num_classes, train_dataset, test_dataset
 
@@ -43,7 +90,6 @@ def compute_loss(nll, reduction="mean"):
         losses = {"nll": torch.mean(nll)}
     elif reduction == "none":
         losses = {"nll": nll}
-
     losses["total_loss"] = losses["nll"]
 
     return losses
@@ -101,12 +147,11 @@ def main(
     saved_optimizer,
     warmup,
 ):
-
     device = "cpu" if (not torch.cuda.is_available() or not cuda) else "cuda:0"
-
+    transform = None
     check_manual_seed(seed)
 
-    ds = check_dataset(dataset, dataroot, augment, download)
+    ds = check_dataset(dataset, dataroot, transform, augment, download)
     image_shape, num_classes, train_dataset, test_dataset = ds
 
     # Note: unsupported for now
@@ -145,7 +190,8 @@ def main(
     optimizer = optim.Adamax(model.parameters(), lr=lr, weight_decay=5e-5)
 
     lr_lambda = lambda epoch: min(1.0, (epoch + 1) / warmup)  # noqa
-    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer, lr_lambda=lr_lambda)
 
     def step(engine, batch):
         model.train()
@@ -194,7 +240,7 @@ def main(
 
     trainer = Engine(step)
     checkpoint_handler = ModelCheckpoint(
-        output_dir, "glow", n_saved=None, require_empty=False
+        output_dir, "glow", n_saved=2, require_empty=False
     )
 
     trainer.add_event_handler(
@@ -221,12 +267,14 @@ def main(
 
     if y_condition:
         monitoring_metrics.extend(["nll"])
-        RunningAverage(output_transform=lambda x: x["nll"]).attach(trainer, "nll")
+        RunningAverage(output_transform=lambda x: x["nll"]).attach(
+            trainer, "nll")
 
         # Note: replace by https://github.com/pytorch/ignite/pull/524 when released
         Loss(
             lambda x, y: torch.mean(x),
-            output_transform=lambda x: (x["nll"], torch.empty(x["nll"].shape[0])),
+            output_transform=lambda x: (
+                x["nll"], torch.empty(x["nll"].shape[0])),
         ).attach(evaluator, "nll")
 
     pbar = ProgressBar()
@@ -234,8 +282,10 @@ def main(
 
     # load pre-trained model if given
     if saved_model:
-        model.load_state_dict(torch.load(saved_model))
+        model.load_state_dict(torch.load(saved_model)["model"])
         model.set_actnorm_init()
+
+        print("model loaded")
 
         if saved_optimizer:
             optimizer.load_state_dict(torch.load(saved_optimizer))
@@ -278,7 +328,8 @@ def main(
         scheduler.step()
         metrics = evaluator.state.metrics
 
-        losses = ", ".join([f"{key}: {value:.2f}" for key, value in metrics.items()])
+        losses = ", ".join(
+            [f"{key}: {value:.2f}" for key, value in metrics.items()])
 
         print(f"Validation Results - Epoch: {engine.state.epoch} {losses}")
 
@@ -308,13 +359,15 @@ if __name__ == "__main__":
         "--dataset",
         type=str,
         default="cifar10",
-        choices=["cifar10", "svhn"],
+        choices=to_dataset_wrapper.keys(),
         help="Type of the dataset to be used.",
     )
 
-    parser.add_argument("--dataroot", type=str, default="./", help="path to dataset")
+    parser.add_argument("--dataroot", type=str,
+                        default=DATAROOT, help="path to dataset")
 
-    parser.add_argument("--download", action="store_true", help="downloads dataset")
+    parser.add_argument("--download", action="store_true",
+                        help="downloads dataset")
 
     parser.add_argument(
         "--no_augment",
@@ -327,7 +380,8 @@ if __name__ == "__main__":
         "--hidden_channels", type=int, default=512, help="Number of hidden channels"
     )
 
-    parser.add_argument("--K", type=int, default=32, help="Number of layers per block")
+    parser.add_argument("--K", type=int, default=32,
+                        help="Number of layers per block")
 
     parser.add_argument("--L", type=int, default=3, help="Number of blocks")
 

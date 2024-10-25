@@ -1,10 +1,10 @@
+"""This module contains the paths for the project directories and the class PathCreator"""
 
-import re
-
-from os import path
 import pathlib
+import re
+from os import path
 
-PROJECT_ROOT = pathlib.Path(__file__).parent.resolve()
+PROJECT_ROOT = pathlib.Path(__file__).parent.parent.resolve()
 
 OUTPUT_DIR = path.join(PROJECT_ROOT, "output")
 DATAROOT = path.join(PROJECT_ROOT, "data")

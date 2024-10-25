@@ -27,7 +27,7 @@ def uniform_binning_correction(x, n_bits=8):
         objective: Equivalent to -q(x)*log(q(x)).
     """
     b, c, h, w = x.size()
-    n_bins = 2 ** n_bits
+    n_bins = 2**n_bits
     chw = c * h * w
     x = x + torch.zeros_like(x).uniform_(0, 1.0 / n_bins)
 

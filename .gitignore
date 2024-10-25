@@ -9,3 +9,6 @@ output_*
 glow_model_
 test.ipynb
 __pycache__
+
+# Exclude files from being ignored
+!data/datasets.py

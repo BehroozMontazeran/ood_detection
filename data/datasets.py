@@ -941,8 +941,8 @@ class ImageNet32Wrapper(DatasetWrapper):
         train_images, train_labels = ImageNet32Wrapper.load_images_from_batches(extract_path, transform)
 
         # Convert lists to tensors
-        train_images_tensor = torch.stack(train_images[:100000])
-        train_labels_tensor = torch.tensor(train_labels[:100000])
+        train_images_tensor = torch.stack(train_images[:60000])
+        train_labels_tensor = torch.tensor(train_labels[:60000])
 
         return torch.utils.data.TensorDataset(train_images_tensor, train_labels_tensor)
 

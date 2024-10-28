@@ -3,11 +3,13 @@ Defines the Datasets used in the
 """
 
 import io
+import os
 import pickle
-import zipfile
 import warnings
+import zipfile
 from abc import ABC, abstractmethod
-from os import path, listdir
+from io import BytesIO
+from os import listdir, path
 from pathlib import Path
 
 import lmdb
@@ -18,6 +20,7 @@ import torch.utils.data as data
 from PIL import Image
 from torch.utils.data.dataset import Dataset
 from torchvision import datasets, transforms
+from tqdm import tqdm
 
 from utilities.routes import DATAROOT
 
@@ -846,18 +849,19 @@ def get_svhn(augment, dataroot, download):
 
 # TODO: Implement the following datasets based on new changes
 
+
+
 class ImageNet32Wrapper(DatasetWrapper):
     """ImageNet32 dataset wrapper."""
-    
+
     name = "imagenet32"
     image_shape = (32, 32, 3)
     num_classes = 1000
 
-
     @staticmethod
     def root(dataroot):
         """Returns the root directory for IMAGENET32."""
-        return path.join(dataroot, "IMAGENET32")
+        return os.path.join(dataroot, "IMAGENET32")
 
     @staticmethod
     def get_augmentations() -> list:
@@ -884,7 +888,8 @@ class ImageNet32Wrapper(DatasetWrapper):
             batch = pickle.load(f)
             images = batch['data']
             labels = batch['labels']
-        
+
+
         # Transform images from raw to PIL format
         images = [Image.fromarray(img.reshape(3, 32, 32).transpose(1, 2, 0)) for img in images]  # Convert to (H, W, C)
         return images, labels
@@ -924,49 +929,264 @@ class ImageNet32Wrapper(DatasetWrapper):
 
         return all_images, all_labels
 
+
     @staticmethod
-    def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = False, download: bool = False) -> torch.utils.data.Dataset:
+    def create_lmdb_from_batches(lmdb_path: str, batch_folder: str, transform=None):
+        """Creates an LMDB database from ImageNet32 batch files."""
+        env = lmdb.open(lmdb_path, map_size=int(1e10))  # Adjust map size as necessary
+        # idx = 0
+
+        with env.begin(write=True) as txn:
+            # Load images and labels from the extracted batch files
+            images, labels = ImageNet32Wrapper.load_images_from_batches(batch_folder, transform)
+            for idx, (img, label) in enumerate(zip(images, labels)):
+                # Serialize each image and label as bytes
+                buffer = BytesIO()
+                img.save(buffer, format="JPEG")
+                img_bytes = buffer.getvalue()
+                key = f"{idx:08}".encode("ascii")
+                value = pickle.dumps((img_bytes, label))
+                if not txn.put(key, value):
+                    print(f"Warning: Failed to write entry {idx}")
+                
+                # idx += 1
+
+        env.close()
+        print("LMDB database created successfully at:", lmdb_path)
+        print(f"Total images added to LMDB: {idx+1}")
+
+    def __init__(self, lmdb_path: str, transform=None):
+        self.lmdb_path = lmdb_path
+        self.transform = transform
+        self.env = lmdb.open(lmdb_path, readonly=True, lock=False, readahead=False, meminit=False)
+
+        # Calculate the number of samples
+        with self.env.begin() as txn:
+            self.length = txn.stat()["entries"]
+            print(f"Total entries in LMDB: {self.length}")
+
+    def __getitem__(self, index):
+        if index >= self.length:
+            # Handle the out-of-bounds case by returning None or a placeholder.
+            print(f"{index} is out of bounds")
+            return None, None
+            # continue
+        key = f"{index:08}".encode("ascii")
+        with self.env.begin(write=False) as txn:
+            data = txn.get(key)
+            if data is None:
+                raise KeyError(f"Entry not found in LMDB for key: {key}")
+
+            img_bytes, label = pickle.loads(data)
+            img = Image.open(BytesIO(img_bytes)).convert("RGB")
+            if self.transform:
+                img = self.transform(img)
+
+        return img, label
+
+    def __len__(self):
+        return self.length
+
+    @staticmethod
+    def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool = False) -> Dataset:
         """Returns the training dataset."""
         train_zip_path = path.join(ImageNet32Wrapper.root(dataroot), 'Imagenet32_train.zip')
-        extract_path = path.join(ImageNet32Wrapper.root(dataroot), 'train')
+        extract_path = path.join(ImageNet32Wrapper.root(dataroot), 'train_batches')
         
         # Extract the training data if it hasn't been extracted yet
         if download and not path.exists(extract_path):
             ImageNet32Wrapper.extract_zip(train_zip_path, extract_path)
-        
+
+
+        lmdb_path = os.path.join(ImageNet32Wrapper.root(dataroot), 'train.lmdb')
+        batch_folder = os.path.join(ImageNet32Wrapper.root(dataroot), 'train_batches')
+
+        # If LMDB doesn't exist, create it
+        if not os.path.exists(lmdb_path):
+            ImageNet32Wrapper.create_lmdb_from_batches(lmdb_path, batch_folder, transform)
+
+        # Define transformations
         if transform is None:
             transform = ImageNet32Wrapper.create_transform(augment)
 
-        # Load images and labels from the extracted batch files
-        train_images, train_labels = ImageNet32Wrapper.load_images_from_batches(extract_path, transform)
+        dataset = ImageNet32Wrapper(lmdb_path, transform)
+        images, labels = [], []
+        for _, ds in enumerate(dataset):
+            img, label = ds
+            images.append(img)
+            labels.append(label)
 
-        # Convert lists to tensors
-        train_images_tensor = torch.stack(train_images[:60000])
-        train_labels_tensor = torch.tensor(train_labels[:60000])
-
-        return torch.utils.data.TensorDataset(train_images_tensor, train_labels_tensor)
+        return torch.utils.data.TensorDataset(torch.stack(images), torch.tensor(labels))
 
     @staticmethod
-    def get_test(dataroot: str = DATAROOT, transform=None, download: bool = False) -> torch.utils.data.Dataset:
+    def get_test(dataroot: str = DATAROOT, transform=None, download: bool = False) -> Dataset:
         """Returns the validation dataset."""
+
         val_zip_path = path.join(ImageNet32Wrapper.root(dataroot), 'Imagenet32_val.zip')
-        extract_path = path.join(ImageNet32Wrapper.root(dataroot), 'val')
+        extract_path = path.join(ImageNet32Wrapper.root(dataroot), 'val_batches')
 
         # Extract the validation data if it hasn't been extracted yet
         if download and not path.exists(extract_path):
             ImageNet32Wrapper.extract_zip(val_zip_path, extract_path)
-        
+
+
+        lmdb_path = os.path.join(ImageNet32Wrapper.root(dataroot), 'val.lmdb')
+        batch_folder = os.path.join(ImageNet32Wrapper.root(dataroot), 'val_batches')
+
+        # If LMDB doesn't exist, create it
+        if not os.path.exists(lmdb_path):
+            ImageNet32Wrapper.create_lmdb_from_batches(lmdb_path, batch_folder, transform)
+
+        # Define transformations
         if transform is None:
             transform = ImageNet32Wrapper.create_transform(augment=False)
+
+        dataset = ImageNet32Wrapper(lmdb_path, transform)
+        images, labels = [], []
+        for _, ds in enumerate(dataset):
+            img, label = ds
+            images.append(img)
+            labels.append(label)
+
+        return torch.utils.data.TensorDataset(torch.stack(images), torch.tensor(labels))
+
+
+
+
+
+
+
+
+
+# class ImageNet32Wrapper(DatasetWrapper):
+#     """ImageNet32 dataset wrapper."""
+    
+#     name = "imagenet32"
+#     image_shape = (32, 32, 3)
+#     num_classes = 1000
+
+
+#     @staticmethod
+#     def root(dataroot):
+#         """Returns the root directory for IMAGENET32."""
+#         return path.join(dataroot, "IMAGENET32")
+
+#     @staticmethod
+#     def get_augmentations() -> list:
+#         """IMAGENET32-specific augmentations."""
+#         return [
+#             transforms.RandomAffine(0, translate=(0.1, 0.1)),
+#             transforms.RandomHorizontalFlip(),
+#         ]
+
+#     @staticmethod
+#     def default_preprocessing() -> list:
+#         return [transforms.ToTensor(), preprocess]
+
+#     @staticmethod
+#     def extract_zip(zip_path: str, extract_to: str) -> None:
+#         """Extracts a zip file to a specified directory."""
+#         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+#             zip_ref.extractall(extract_to)
+
+#     @staticmethod
+#     def load_batch_file(file_path: str) -> tuple:
+#         """Loads a batch file and returns images and labels."""
+#         with open(file_path, 'rb') as f:
+#             batch = pickle.load(f)
+#             images = batch['data']
+#             labels = batch['labels']
         
-        # Load images and labels from the extracted batch files
-        val_images, val_labels = ImageNet32Wrapper.load_images_from_batches(extract_path, transform)
+#         # Transform images from raw to PIL format
+#         images = [Image.fromarray(img.reshape(3, 32, 32).transpose(1, 2, 0)) for img in images]  # Convert to (H, W, C)
+#         return images, labels
 
-        # Convert lists to tensors
-        val_images_tensor = torch.stack(val_images[:10000])
-        val_labels_tensor = torch.tensor(val_labels[:10000])
+#     @staticmethod
+#     def load_images_from_batches(folder: str, transform=None) -> tuple:
+#         """Loads images and labels from all batch files in a folder."""
+#         all_images = []
+#         all_labels = []
+        
+#         # Iterate over files in the provided folder
+#         for filename in listdir(folder):
+#             file_path = path.join(folder, filename)
 
-        return torch.utils.data.TensorDataset(val_images_tensor, val_labels_tensor)
+#             if path.isfile(file_path):
+#                 # Handle training batches
+#                 if filename.startswith("train_data_batch_"):
+#                     try:
+#                         images, labels = ImageNet32Wrapper.load_batch_file(file_path)
+#                         if transform:
+#                             images = [transform(img) for img in images]
+#                         all_images.extend(images)
+#                         all_labels.extend(labels)
+#                     except Exception as e:
+#                         print(f"Error loading batch file {file_path}: {e}")
+
+#                 # Handle validation batch
+#                 elif filename == "val_data":
+#                     try:
+#                         images, labels = ImageNet32Wrapper.load_batch_file(file_path)
+#                         if transform:
+#                             images = [transform(img) for img in images]
+#                         all_images.extend(images)
+#                         all_labels.extend(labels)
+#                     except Exception as e:
+#                         print(f"Error loading validation file {file_path}: {e}")
+
+#         return all_images, all_labels
+
+#     @staticmethod
+#     def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = False, download: bool = False) -> torch.utils.data.Dataset:
+#         """Returns the training dataset."""
+#         train_zip_path = path.join(ImageNet32Wrapper.root(dataroot), 'Imagenet32_train.zip')
+#         extract_path = path.join(ImageNet32Wrapper.root(dataroot), 'train')
+        
+#         # Extract the training data if it hasn't been extracted yet
+#         if download and not path.exists(extract_path):
+#             ImageNet32Wrapper.extract_zip(train_zip_path, extract_path)
+        
+#         if transform is None:
+#             transform = ImageNet32Wrapper.create_transform(augment)
+
+#         # Load images and labels from the extracted batch files
+#         train_images, train_labels = ImageNet32Wrapper.load_images_from_batches(extract_path, transform)
+
+#         # Convert lists to tensors
+#         train_images_tensor = torch.stack(train_images[:60000])
+#         train_labels_tensor = torch.tensor(train_labels[:60000])
+
+#         return torch.utils.data.TensorDataset(train_images_tensor, train_labels_tensor)
+
+#     @staticmethod
+#     def get_test(dataroot: str = DATAROOT, transform=None, download: bool = False) -> torch.utils.data.Dataset:
+#         """Returns the validation dataset."""
+#         val_zip_path = path.join(ImageNet32Wrapper.root(dataroot), 'Imagenet32_val.zip')
+#         extract_path = path.join(ImageNet32Wrapper.root(dataroot), 'val')
+
+#         # Extract the validation data if it hasn't been extracted yet
+#         if download and not path.exists(extract_path):
+#             ImageNet32Wrapper.extract_zip(val_zip_path, extract_path)
+        
+#         if transform is None:
+#             transform = ImageNet32Wrapper.create_transform(augment=False)
+        
+#         # Load images and labels from the extracted batch files
+#         val_images, val_labels = ImageNet32Wrapper.load_images_from_batches(extract_path, transform)
+
+#         # Convert lists to tensors
+#         val_images_tensor = torch.stack(val_images[:10000])
+#         val_labels_tensor = torch.tensor(val_labels[:10000])
+
+#         return torch.utils.data.TensorDataset(val_images_tensor, val_labels_tensor)
+
+
+
+
+
+
+
+
 
 
 # class Imagenet32Wrapper(DatasetWrapper):

@@ -12,3 +12,4 @@ __pycache__
 
 # Exclude files from being ignored
 !data/datasets.py
+.vscode

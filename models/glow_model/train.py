@@ -240,7 +240,7 @@ def main(
 
     trainer = Engine(step)
     checkpoint_handler = ModelCheckpoint(
-        output_dir, "glow", n_saved=2, require_empty=False
+        output_dir, "glow", n_saved=10, require_empty=False
     )
 
     trainer.add_event_handler(

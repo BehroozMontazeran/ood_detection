@@ -5,7 +5,7 @@ import shutil
 from os import path, makedirs
 
 from models.glow_model.train import train_glow  # , train_vae, train_diffusion
-from utilities.routes import OUTPUT_DIR, DATAROOT
+from utilities.routes import OUTPUT_DIR, DATAROOT, PathCreator
 from utilities.utils import to_dataset_wrapper
 
 
@@ -36,6 +36,7 @@ def train_model(model_type, **kwargs_):
         raise ValueError(f"Unknown model type: {model_type}")
 
 if __name__ == "__main__":
+    path_creator = PathCreator()
     parser = argparse.ArgumentParser()
 
     # General arguments
@@ -89,7 +90,7 @@ if __name__ == "__main__":
     # Loop over all datasets and models
     for dataset_name in to_dataset_wrapper.keys():
         # Create a unique sub-directory for each dataset-model combination
-        dataset_output_dir = path.join(OUTPUT_DIR, f"{model_type_arg}_{dataset_name}")
+        dataset_output_dir = path_creator.model_dataset_path(model_type_arg, dataset_name)
         setup_output_dir(dataset_output_dir, fresh_arg)
         
         # Prepare dataset-specific arguments

@@ -43,5 +43,8 @@ class PathCreator:
         if match:
             split = match.group(1)  # Extract the split (either 'Test' or 'Train')
             return split  # Output: Dataset split: Test
-        else:
-            return None
+        return None
+
+    def model_dataset_path(self, model_name, dataset_name):
+        """Create the path for the model dataset"""
+        return path.join(OUTPUT_DIR, f"{model_name}_{dataset_name}")

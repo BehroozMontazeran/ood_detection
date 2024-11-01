@@ -92,6 +92,16 @@ class DatasetWrapper(ABC):
         return (cls.image_shape, cls.num_classes,
                 cls.get_train(dataroot, transform, augment, download),
                 cls.get_test(dataroot, transform, download))
+    
+    
+    @classmethod
+    def get_val(cls, dataroot: str = DATAROOT, transform=None, download=True) -> tuple:
+        """
+        Returns a tuple of dataset info: (image shape, num classes, train dataset, test dataset)
+        """
+        return (cls.image_shape, cls.num_classes,
+                None,
+                cls.get_test(dataroot, transform, download))
 
     @classmethod
     def default_preprocessing(cls) -> list:
@@ -276,7 +286,7 @@ class GTSRBWrapper(DatasetWrapper):
     
     @staticmethod
     def default_preprocessing() -> list:
-        return [transforms.ToTensor(), transforms.Resize((32, 32)), preprocess]
+        return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), preprocess]
    
     @staticmethod
     def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
@@ -307,9 +317,6 @@ class OmniglotWrapper(DatasetWrapper):
     image_shape = (28, 28, 1)
     num_classes = 10
 
-    # scaling_transform = transforms.Compose(
-    #     [transforms.ToTensor(), transforms.Resize((image_shape[0], image_shape[1]))]
-    # )
     @staticmethod
     def default_preprocessing() -> list:
         return [transforms.ToTensor(), transforms.Resize((OmniglotWrapper.image_shape[0], OmniglotWrapper.image_shape[1]))]
@@ -329,18 +336,11 @@ class OmniglotWrapper(DatasetWrapper):
         return datasets.Omniglot(
             dataroot, background=False, download=download, transform=transform
         )
-# TODO check if Lambda is working correctly, unless use a function 
+
 class FlippedOmniglotWrapper(OmniglotWrapper):
     """ Flipped Omniglot dataset wrapper """
     name = "flipped_omniglot"
 
-    # scaling_transform = transforms.Compose(
-    #     [
-    #         transforms.ToTensor(),
-    #         flip,
-    #         transforms.Resize((OmniglotWrapper.image_shape[0], OmniglotWrapper.image_shape[1])),
-    #     ]
-    # )
     @staticmethod
     def default_preprocessing() -> list:
         return [transforms.ToTensor(), transforms.Lambda(lambda x: 1 - x), transforms.Resize((OmniglotWrapper.image_shape[0], OmniglotWrapper.image_shape[1]))]
@@ -519,12 +519,13 @@ class ImageNet32Wrapper(DatasetWrapper):
 
         dataset = ImageNet32Wrapper(lmdb_path, transform)
         images, labels = [], [] 
-        for i in tqdm(range(len(dataset)), desc="Loading training data"):
+        for i in tqdm(range(len(dataset)), desc="Loading training data from ImageNet32"):
             img, label = dataset[i]
             images.append(img)
             labels.append(label)
-
-        return torch.utils.data.TensorDataset(torch.stack(images), torch.tensor(labels))
+        tensor_dataset=torch.utils.data.TensorDataset(torch.stack(images), torch.tensor(labels))
+        tensor_dataset.name = ImageNet32Wrapper.name  # Set the name attribute directly
+        return tensor_dataset
 
     @staticmethod
     def get_test(dataroot: str = DATAROOT, transform=None, download: bool = False) -> Dataset:
@@ -551,13 +552,14 @@ class ImageNet32Wrapper(DatasetWrapper):
 
         dataset = ImageNet32Wrapper(lmdb_path, transform)
         images, labels = [], []
-        for i in tqdm(range(len(dataset)), desc="Loading validation data"):
+        for i in tqdm(range(len(dataset)), desc="Loading validation data of ImageNet32"):
             img, label = dataset[i]
             images.append(img)
             labels.append(label)
 
-        return torch.utils.data.TensorDataset(torch.stack(images), torch.tensor(labels))
-
+        tensor_dataset=torch.utils.data.TensorDataset(torch.stack(images), torch.tensor(labels))
+        tensor_dataset.name = ImageNet32Wrapper.name  # Set the name attribute directly
+        return tensor_dataset
 # class ImageNet32Wrapper(DatasetWrapper):
 #     """ImageNet32 dataset wrapper."""
     
@@ -758,7 +760,7 @@ class CelebAWrapper(DatasetWrapper):
 
     @staticmethod
     def default_preprocessing() -> list:
-        return [CropCelebA64(),transforms.Resize((32, 32)),
+        return [CropCelebA64(),transforms.Resize((CelebAWrapper.image_shape[0], CelebAWrapper.image_shape[1])),
                  transforms.ToTensor(), preprocess]
 
     @staticmethod
@@ -839,11 +841,13 @@ class CelebAWrapper(DatasetWrapper):
 
         dataset = CelebAWrapper(lmdb_path, transform)
         images, labels = [], [] 
-        for i in tqdm(range(len(dataset)), desc="Loading training data"):
+        for i in tqdm(range(len(dataset)), desc="Loading training data of CelebA"):
             img, label = dataset[i]
             images.append(img)
             labels.append(label)
-        return torch.utils.data.TensorDataset(torch.stack(images), torch.tensor(labels))
+        tensor_dataset=torch.utils.data.TensorDataset(torch.stack(images), torch.tensor(labels))
+        tensor_dataset.name = CelebAWrapper.name  # Set the name attribute directly
+        return tensor_dataset
 
     @staticmethod
     def get_test(dataroot: str=DATAROOT, transform=None, download: bool = False) -> Dataset:
@@ -866,11 +870,13 @@ class CelebAWrapper(DatasetWrapper):
 
         dataset = CelebAWrapper(lmdb_path, transform)
         images, labels = [], [] 
-        for i in tqdm(range(len(dataset)), desc="Loading validation data"):
+        for i in tqdm(range(len(dataset)), desc="Loading validation data of CelebA"):
             img, label = dataset[i]
             images.append(img)
             labels.append(label)
-        return torch.utils.data.TensorDataset(torch.stack(images), torch.tensor(labels))
+        tensor_dataset=torch.utils.data.TensorDataset(torch.stack(images), torch.tensor(labels))
+        tensor_dataset.name = CelebAWrapper.name  # Set the name attribute directly
+        return tensor_dataset
 
 
 

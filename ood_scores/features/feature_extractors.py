@@ -2,6 +2,7 @@
 import torch
 from tqdm import tqdm
 
+
 class FeatureExtractor:
     """ Base class for feature extractors """
     def __init__(self, model, device):
@@ -55,9 +56,9 @@ class FeatureExtractor:
         # Initialize a list to hold log features for each layer
         # Use a list of tensors initialized with empty tensors to accumulate log features
         all_features = None
-
+        fit_ds_name = getattr(fit_loader.dataset, 'name', fit_loader.dataset.__class__.__name__).lower()
         # Loop through batches in the fit dataset
-        for inputs, _ in tqdm(fit_loader, desc='Fitting Gaussians to log features'):
+        for inputs, _ in tqdm(fit_loader, desc=f'Fitting Gaussians to log features {fit_ds_name}'):
             inputs = inputs.to(self.device)
 
             # Get the gradient features for the batch

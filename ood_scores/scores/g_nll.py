@@ -5,7 +5,7 @@ import torch
 from ood_scores.features.feature_extractors import FeatureExtractor
 
 
-class OodScores(FeatureExtractor):
+class OODScores(FeatureExtractor):
     """ Base class for ood scores calculators """
     def __init__(self, model, device):
         super().__init__(model, device)

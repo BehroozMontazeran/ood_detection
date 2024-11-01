@@ -18,10 +18,11 @@ from utilities.routes import PROJECT_ROOT
 to_dataset_wrapper = {
     DS_Wrapper.name: DS_Wrapper for DS_Wrapper in
     [
+        ImageNet32Wrapper,
         SVHNWrapper,
         CelebAWrapper,
         CIFAR10Wrapper,
-        ImageNet32Wrapper,
+        # ImageNet32Wrapper,
         GTSRBWrapper,
         # MNISTWrapper,
         # FashionMNISTWrapper,

@@ -9,7 +9,8 @@ output_*
 glow_model_
 test.ipynb
 __pycache__
+.vscode
 
 # Exclude files from being ignored
 !data/datasets.py
-.vscode
+!data/__init__.py

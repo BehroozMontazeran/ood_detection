@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from models.load_models import LoadModels
 from ood_scores.features.feature_extractors import FeatureExtractor
 from ood_scores.ood_extractors import OODScoresExtractor
+from utilities.plot import process_and_plot
 from utilities.routes import OUTPUT_DIR
 from utilities.utils import dataset_names, to_dataset_wrapper
 
@@ -29,7 +30,7 @@ def main():
         "--fit_dataset",
         type=str,
         default="cifar10",  # Default fit dataset
-        choices=to_dataset_wrapper.keys(),
+        choices=dataset_names,#to_dataset_wrapper.keys(),
         help="Dataset to use for fitting."
     )
     parser.add_argument(
@@ -44,6 +45,12 @@ def main():
         default="5000",
         help="Number of samples for OOD score computation."
     )
+    parser.add_argument(
+        "--plot",
+        type=bool,
+        default=True,
+        help="Whether to plot the results."
+    )
 
     args = parser.parse_args()
 
@@ -55,6 +62,7 @@ def main():
     num_samples = int(args.ood_num_samples)
     fit_dataset_name = args.fit_dataset
     model_type = args.model_type
+    plot = args.plot
 
     # List the name of checkpoints for each subfolder
     data_path = path.join(OUTPUT_DIR, f"{model_type}_{fit_dataset_name}")
@@ -86,6 +94,10 @@ def main():
             test_ds = load_models.load_test_dataset(model_type, test_dataset_name)
             ood_scores_extractor.ood_scores_on_batches(test_ds, ood_batch_size, means, variances, num_samples=num_samples, checkpoint=checkpoint, fit=False)
         dataset_names.add(fit_dataset_name)
+
+    if plot:
+        # Plot Histograms of OOD scores and ROC curves
+        process_and_plot(data_path)
 
 if __name__ == '__main__':
     main()

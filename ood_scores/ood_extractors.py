@@ -1,5 +1,6 @@
 """ Class to extract OOD scores from a model."""
 import random
+from os import makedirs, path
 
 import torch
 from torch.utils.data import DataLoader, Subset
@@ -27,6 +28,9 @@ class OODScoresExtractor(OODScores):
         if fit:
             self.fit_ds_name = ds_name
             output_dir = self.path_creator.model_dataset_path(self.model.__class__.__name__.lower(), self.fit_ds_name)
+            output_dir = path.join(output_dir, batch_size)
+            if not path.exists(output_dir):
+                makedirs(output_dir)
             file_dir = f"{output_dir}/ood_scores_fit_samples_b{batch_size}_{self.fit_ds_name}_using_checkpoint_{checkpoint_number}.pth"
             ood_scores_fit_samples = self.run_ood_scores(dataset, batch_size, means, variances, num_samples)
             torch.save(ood_scores_fit_samples, file_dir)
@@ -34,6 +38,9 @@ class OODScoresExtractor(OODScores):
         else:
             # Compute OOD scores for Test dataset
             output_dir = self.path_creator.model_dataset_path(self.model.__class__.__name__.lower(), self.fit_ds_name)
+            output_dir = path.join(output_dir, batch_size)
+            if not path.exists(output_dir):
+                makedirs(output_dir)
             file_dir = f"{output_dir}/ood_scores_test_samples_b{batch_size}_{ds_name}_on_{self.fit_ds_name}_using_checkpoint_{checkpoint_number}.pth"
             ood_scores_test_samples = self.run_ood_scores(dataset, batch_size, means, variances, num_samples)
             torch.save(ood_scores_test_samples, file_dir)

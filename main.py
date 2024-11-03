@@ -11,7 +11,7 @@ from ood_scores.features.feature_extractors import FeatureExtractor
 from ood_scores.ood_extractors import OODScoresExtractor
 from utilities.plot import process_and_plot
 from utilities.routes import OUTPUT_DIR
-from utilities.utils import dataset_names, to_dataset_wrapper
+from utilities.utils import dataset_names
 
 
 def main():
@@ -83,7 +83,7 @@ def main():
         fit_loader = DataLoader(fit_test, batch_size=ood_batch_size, shuffle=True)
 
         # Fit Gaussians to the log of the gradient features
-        means, variances, _ = feature_extractor.fit_gaussians_to_log_features(fit_loader)
+        means, variances, _ = feature_extractor.fit_gaussians_to_log_features(fit_loader, data_path, ood_batch_size)
         ood_scores_extractor.ood_scores_on_batches(fit_test, ood_batch_size, means, variances, num_samples=num_samples, checkpoint=checkpoint, fit=True)
 
         # Load other dataset_name as test
@@ -97,7 +97,8 @@ def main():
 
     if plot:
         # Plot Histograms of OOD scores and ROC curves
-        process_and_plot(data_path)
+        d_path = path.join(data_path, str(ood_batch_size))
+        process_and_plot(d_path)
 
 if __name__ == '__main__':
     main()

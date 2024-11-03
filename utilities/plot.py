@@ -79,11 +79,11 @@ def plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, o
     plt.figure(figsize=(10, 6))
     
     # Define a more distinctive list of colors for the datasets
-    colors = ['#ADD8E6', '#90EE90', '#FFFF00', '#FFC0CB']  # Light blue, light green, yellow, pink
-    color_cycle = iter(colors)  # Create an iterator to cycle through the colors
+    colors = ['#002CFF', '#00FF11', '#F0FF00', '#00FAFF'] # Blue, Green, Yellow, Cyan
+    color_cycle = iter(colors)
     
     # Plot histogram for fit samples
-    plt.hist(fit_scores, bins=bins, alpha=0.7, label=f'Fit Samples ({fit_dataset_name})', color='#8B0000', edgecolor='black')
+    plt.hist(fit_scores, bins=bins, alpha=0.7, label=f'Fit Samples ({fit_dataset_name})', color='#FF0000', edgecolor='black') # Red
     
     # Plot histogram for each test dataset with distinct colors
     for test_name, scores in test_scores_dict.items():
@@ -195,11 +195,11 @@ def plot_auroc(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, outpu
         plt.figure(figsize=(8, 6))
         plt.text(0.6, 0.2, conf_matrix_text, fontsize=12, bbox=dict(facecolor='white', alpha=0.8), transform=plt.gca().transAxes)
         plt.plot(fpr, tpr, label=f"ROC Curve (AUROC = {auroc:.4f})")
-        plt.scatter(fpr[best_threshold_index], tpr[best_threshold_index], color='red', label=f"Best Threshold (Youden's J) = {best_threshold:.4f}")
+        plt.scatter(fpr[best_threshold_index], tpr[best_threshold_index], color='#FF0000', label=f"Best Threshold (Youden's J) = {best_threshold:.4f}")
         plt.plot([0, 1], [0, 1], linestyle='--', color='gray', label="Random Classifier")
         plt.xlabel("False Positive Rate (FPR)")
         plt.ylabel("True Positive Rate (TPR)")
-        plt.title(f"Receiver Operating Characteristic (ROC) Curve for {test_name} vs {fit_dataset_name} (Checkpoint {checkpoint})")
+        plt.title(f"Receiver Operating Characteristic (ROC) Curve for {fit_dataset_name} vs {test_name} (Checkpoint {checkpoint})")
         plt.legend()
         plt.grid(True)
         
@@ -222,7 +222,12 @@ def save_auroc_csv(auroc_df, output_dir):
     # If the file exists, load the existing data and concatenate
     if path.exists(output_path):
         existing_df = pd.read_csv(output_path, index_col=0)
-        auroc_df = pd.concat([existing_df, auroc_df], axis=1)
+        for column in auroc_df.columns:
+            if column in existing_df.columns:
+                existing_df[column] = auroc_df[column]
+            else:
+                existing_df = pd.concat([existing_df, auroc_df[[column]]], axis=1)
+        auroc_df = existing_df
     
     # Save the combined DataFrame
     auroc_df.to_csv(output_path)
@@ -271,7 +276,7 @@ def main():
 
     fit_dataset_name = args.fit_dataset
     model_type = args.model_type
-    ood_batch_size = int(args.ood_batch_size)
+    ood_batch_size = args.ood_batch_size
 
     data_path = path.join(OUTPUT_DIR, f"{model_type}_{fit_dataset_name}")
     d_path = path.join(data_path, ood_batch_size)

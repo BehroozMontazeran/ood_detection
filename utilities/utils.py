@@ -32,7 +32,7 @@ to_dataset_wrapper = {
 }
 
 
-dataset_names = set(to_dataset_wrapper.keys())
+dataset_names = set(sorted(to_dataset_wrapper.keys()))
 
 
 def get_image_shape(dataset_name):

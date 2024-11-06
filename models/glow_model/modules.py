@@ -6,6 +6,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from models.glow_model.utils import compute_same_pad, split_feature
+
+# from models.glow_model.model import FlowStep
+# from data.datasets import postprocess
 # MNIST dataset has 28x28 images, but the loss goes inf.
 # def gaussian_p(mean, logs, x):
 #     """
@@ -58,10 +61,70 @@ def gaussian_likelihood(mean, logs, x):
 
 def gaussian_sample(mean, logs, temperature=1):
     """ Sample from Gaussian with temperature """
-
     z = torch.normal(mean, torch.exp(logs) * temperature)
-
     return z
+
+# def gaussian_sample(mean, logs, temperature=1.0):
+#     # Obtain mean and logs from the model
+#     # mean, logs = model(y_onehot=None, reverse=True)
+    
+#     # Clamp logs to avoid extreme values after exponentiation
+#     logs = torch.clamp(logs, min=-10, max=10)
+    
+#     # Check for infinities and replace them
+#     mean = torch.where(torch.isfinite(mean), mean, torch.zeros_like(mean))
+#     logs = torch.where(torch.isfinite(logs), logs, torch.zeros_like(logs))
+
+#     # # Print for debugging
+#     # print("Mean values after replacement:", mean)
+#     # print("Standard deviations after replacement:", torch.exp(logs) * temperature)
+
+#     # Sample with adjusted mean and std
+#     z = torch.normal(mean, torch.exp(logs) * temperature)
+#     return z
+
+
+
+# def check_for_nan(tensor, layer_name, layer_index):
+#     if torch.isnan(tensor).any():
+#         print(f"NaN detected in {layer_name} at index {layer_index}")
+
+# def sample_and_debug_glow(model, z, temperature=1.0):
+#     # Start reverse pass with latent `z` adjusted by temperature
+#     z = z * temperature
+
+#     for i, layer in enumerate(model.flow.layers):
+#         if isinstance(layer, FlowStep):
+#             # Run each component in the FlowStep separately to isolate `NaNs`
+
+#             # ActNorm
+#             z = layer.actnorm(z, reverse=True)
+#             check_for_nan(z, "ActNorm", i)
+
+#             # InvertibleConv1x1
+#             z = layer.invconv(z, reverse=True)
+#             check_for_nan(z, "InvertibleConv1x1", i)
+
+#             # Convolutional Block
+#             for j, sublayer in enumerate(layer.block):
+#                 z = sublayer(z)
+#                 check_for_nan(z, f"Conv Block Layer {j}", i)
+
+#         elif isinstance(layer, Split2d):
+#             # Split2d layer reverse pass
+#             z = layer(z, reverse=True)
+#             check_for_nan(z, "Split2d", i)
+
+#         elif isinstance(layer, SqueezeLayer):
+#             # SqueezeLayer reverse pass
+#             z = layer(z, reverse=True)
+#             check_for_nan(z, "SqueezeLayer", i)
+
+#     # Final output
+#     images = postprocess(z)
+#     check_for_nan(images, "Final Output", -1)
+#     return images
+
 
 # def squeeze2d(inputs, factor):
 #     """ Squeeze input 2D tensor into 4D """
@@ -385,6 +448,7 @@ class Split2d(nn.Module):
             z1 = inputs
             mean, logs = self.split2d_prior(z1)
             z2 = gaussian_sample(mean, logs, temperature)
+            # z2 = sample_and_debug_glow(self, mean, temperature)
             z = torch.cat((z1, z2), dim=1)
             return z, logdet
         else:

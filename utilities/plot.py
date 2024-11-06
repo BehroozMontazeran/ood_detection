@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.metrics import accuracy_score, confusion_matrix, roc_auc_score, roc_curve
+from sklearn.metrics import accuracy_score, confusion_matrix, roc_auc_score, roc_curve, RocCurveDisplay
 from utilities.utils import dataset_names
 from utilities.routes import OUTPUT_DIR
 
@@ -82,12 +82,12 @@ def plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, o
     colors = ['#002CFF', '#00FF11', '#F0FF00', '#00FAFF'] # Blue, Green, Yellow, Cyan
     color_cycle = iter(colors)
     
-    # Plot histogram for fit samples
-    plt.hist(fit_scores, bins=bins, alpha=0.7, label=f'Fit Samples ({fit_dataset_name})', color='#FF0000', edgecolor='black') # Red
-    
     # Plot histogram for each test dataset with distinct colors
     for test_name, scores in test_scores_dict.items():
         plt.hist(scores, bins=bins, alpha=0.5, label=f'Test Samples ({test_name})', color=next(color_cycle), edgecolor='black')
+
+    # Plot histogram for fit samples
+    plt.hist(fit_scores, bins=bins, alpha=0.7, label=f'Fit Samples ({fit_dataset_name})', color='#FF0000', edgecolor='black') # Red
     
     # Add labels and title
     plt.xlabel('OOD Scores')
@@ -102,6 +102,8 @@ def plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, o
     
     # Show the plot
     plt.show()
+
+
 
 def best_bin_size(fit_scores, test_scores_list):
     """Calculate the optimal bin size using the Freedman-Diaconis rule"""
@@ -146,12 +148,12 @@ def process_and_plot(file_path):
         plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, output_plot_dir)
 
         # Plot AUROC
-        auroc_df = plot_auroc(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, output_plot_dir)
+        auroc_df = plot_auroc_subplot(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, output_plot_dir)
         save_auroc_csv(auroc_df, output_plot_dir)
 
 
-def plot_auroc(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, output_dir):
-    """Calculate and plot AUROC for fit against each test dataset, returning a DataFrame with AUROC scores."""
+def plot_auroc_subplot(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, output_dir):
+    """Calculate and plot AUROC for fit against each test dataset using subplots, returning a DataFrame with AUROC scores."""
     
     # Define the column name based on fit_dataset_name and checkpoint
     column_name = f"{fit_dataset_name}_checkpoint_{checkpoint}"
@@ -159,7 +161,15 @@ def plot_auroc(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, outpu
     # Dictionary to store current checkpoint AUROC scores
     auroc_scores = {}
 
-    for test_name, test_scores in test_scores_dict.items():
+    # Define the number of test datasets for subplots
+    num_tests = len(test_scores_dict)
+    fig, axs = plt.subplots(1, num_tests, figsize=(5 * num_tests, 6), constrained_layout=True)
+    
+    # Ensure axs is iterable even when there's only one subplot
+    if num_tests == 1:
+        axs = [axs]
+    
+    for ax, (test_name, test_scores) in zip(axs, test_scores_dict.items()):
         # Create labels: 0 for fit samples (in-distribution), 1 for test samples (out-of-distribution)
         labels_fit = np.zeros_like(fit_scores)  # 0 for in-distribution
         labels_test = np.ones_like(test_scores)  # 1 for out-of-distribution
@@ -168,7 +178,7 @@ def plot_auroc(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, outpu
         all_scores = np.concatenate([fit_scores, test_scores])
         all_labels = np.concatenate([labels_fit, labels_test])
 
-        # Step 1: Compute ROC curve and AUROC
+        # Compute ROC curve and AUROC
         fpr, tpr, thresholds = roc_curve(all_labels, all_scores)
         auroc = roc_auc_score(all_labels, all_scores)
         
@@ -177,13 +187,13 @@ def plot_auroc(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, outpu
         
         print(f"AUROC for {test_name} against {fit_dataset_name} (Checkpoint {checkpoint}): {auroc:.4f}")
 
-        # Step 2: Compute Youden's J statistic to find the best threshold
-        J_scores = tpr - fpr  # Youden's J statistic
-        best_threshold_index = np.argmax(J_scores)  # Index of the best threshold
+        # Compute Youden's J statistic to find the best threshold
+        J_scores = tpr - fpr
+        best_threshold_index = np.argmax(J_scores)
         best_threshold = thresholds[best_threshold_index]
 
-        # Step 3: Evaluate using the best threshold
-        predictions = (all_scores > best_threshold).astype(int)  # Apply the best threshold
+        # Evaluate using the best threshold
+        predictions = (all_scores > best_threshold).astype(int)
         accuracy = accuracy_score(all_labels, predictions)
         conf_matrix = confusion_matrix(all_labels, predictions)
         conf_matrix_text = f"Confusion Matrix:\nTP: {conf_matrix[1, 1]}, FP: {conf_matrix[0, 1]}\nFN: {conf_matrix[1, 0]}, TN: {conf_matrix[0, 0]}"
@@ -191,23 +201,32 @@ def plot_auroc(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, outpu
         print(f"Accuracy using best threshold: {accuracy:.4f}")
         print(f"Confusion Matrix:\n{conf_matrix}")
 
-        # Step 4: Plot ROC curve
-        plt.figure(figsize=(8, 6))
-        plt.text(0.6, 0.2, conf_matrix_text, fontsize=12, bbox=dict(facecolor='white', alpha=0.8), transform=plt.gca().transAxes)
-        plt.plot(fpr, tpr, label=f"ROC Curve (AUROC = {auroc:.4f})")
-        plt.scatter(fpr[best_threshold_index], tpr[best_threshold_index], color='#FF0000', label=f"Best Threshold (Youden's J) = {best_threshold:.4f}")
-        plt.plot([0, 1], [0, 1], linestyle='--', color='gray', label="Random Classifier")
-        plt.xlabel("False Positive Rate (FPR)")
-        plt.ylabel("True Positive Rate (TPR)")
-        plt.title(f"Receiver Operating Characteristic (ROC) Curve for {fit_dataset_name} vs {test_name} (Checkpoint {checkpoint})")
-        plt.legend()
-        plt.grid(True)
+        # Plot ROC curve using RocCurveDisplay
+        display = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=auroc, estimator_name=test_name)
+        display.plot(ax=ax)
         
-        # Save the plot
-        plot_filename = f'roc_curve_{fit_dataset_name}_{test_name}_checkpoint_{checkpoint}.png'
-        plt.savefig(path.join(output_dir, plot_filename))
-        plt.show()
+        # Highlight the best threshold on the plot
+        ax.scatter(fpr[best_threshold_index], tpr[best_threshold_index], color='#FF0000', 
+                   label=f"Best Threshold (Youden's J) = {best_threshold:.4f}")
+        ax.plot([0, 1], [0, 1], linestyle='--', color='gray', label="Random Classifier")
+        
+        # Set labels, title, and legend
+        ax.set_title(f"ROC for {fit_dataset_name} vs {test_name}")
+        ax.set_xlabel("False Positive Rate (FPR)")
+        ax.set_ylabel("True Positive Rate (TPR)")
+        ax.legend(loc='lower right')
+        
+        # Display the confusion matrix text
+        ax.text(0.6, 0.2, conf_matrix_text, fontsize=10, bbox=dict(facecolor='white', alpha=0.8), transform=ax.transAxes)
     
+    # Set the main title for the entire figure
+    fig.suptitle(f"ROC Curves for {fit_dataset_name} (Checkpoint {checkpoint})", fontsize=16)
+    
+    # Save the entire figure
+    plot_filename = f'roc_curves_{fit_dataset_name}_checkpoint_{checkpoint}.png'
+    plt.savefig(path.join(output_dir, plot_filename))
+    plt.show()
+
     # Convert auroc_scores to a DataFrame with one column for the current checkpoint
     checkpoint_df = pd.DataFrame.from_dict(auroc_scores, orient='index', columns=[column_name])
 

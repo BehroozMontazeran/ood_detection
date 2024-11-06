@@ -96,18 +96,20 @@ class FeatureExtractor:
     #     return means, variances, all_features
 
 
-    def fit_gaussians_to_log_features(self, fit_loader, file_path, ood_batch_size):
+    def fit_gaussians_to_log_features(self, fit_loader, file_path, ood_batch_size, checkpoint):
         """ Fits Gaussians to the log of the gradient features """
 
         # Check if the Gaussian parameters file exists
         self.file_path = file_path
         self.ood_batch_size = str(ood_batch_size)
-        fit_path = f'fit_gaussian_params_b{self.ood_batch_size}.pth'
+        checkpoint_number = ''.join(filter(str.isdigit, checkpoint))
+        fit_path = f'fit_gaussian_params_b{self.ood_batch_size}_{checkpoint_number}.pth'
         self.file_path = path.join(self.file_path, fit_path)
         if path.exists(self.file_path):
             # Load the Gaussian parameters and log features from the file
-            checkpoint = torch.load(self.file_path)
-            return checkpoint['means'], checkpoint['variances'], checkpoint['all_features']
+            guassian_params = torch.load(self.file_path)
+            print(f"Loaded Gaussian parameters from {self.file_path}")
+            return guassian_params['means'], guassian_params['variances'], guassian_params['all_features']
 
         # Initialize a list to hold log features for each layer
         # Use a list of tensors initialized with empty tensors to accumulate log features

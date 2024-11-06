@@ -42,7 +42,7 @@ def main():
     parser.add_argument(
         "--ood_num_samples",
         type=str,
-        default="5000",
+        default="1000",
         help="Number of samples for OOD score computation."
     )
     parser.add_argument(
@@ -51,22 +51,51 @@ def main():
         default=True,
         help="Whether to plot the results."
     )
-
+    parser.add_argument(
+        "--loop_over_all",
+        type=bool,
+        default=False,
+        help="Whether to loop over all datasets[cifar10, celeba, imagenet32, gstrb, svhn], ood_batch_sizes {1,5} and checkpoints {0, -1}."
+    )
     args = parser.parse_args()
 
+    # load_models = LoadModels()
+    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
+    # ood_batch_size = int(args.ood_batch_size)
+    # num_samples = int(args.ood_num_samples)
+    # fit_dataset_name = args.fit_dataset
+    # model_type = args.model_type
+    # plot = args.plot
+    loop_over_all = args.loop_over_all
+
+    if loop_over_all:
+        fit_dataset_names = dataset_names
+        for fit_dataset_name in fit_dataset_names:
+            # fit_dataset_names.remove(fit_dataset_name)
+            data_path = path.join(OUTPUT_DIR, f"{args.model_type}_{fit_dataset_name}")
+            checkpoints = [f for f in listdir(data_path) if f.endswith('.pt')]
+            for ood_batch_size in ["1", "5"]:
+                calculate_results(args, fit_dataset_name=fit_dataset_name, data_path=data_path, ood_batch_size=ood_batch_size, checkpoints=checkpoints)
+    else:
+        calculate_results(args)
+
+
+def calculate_results(args, fit_dataset_name=None, data_path=None, ood_batch_size=None, checkpoints=None):
+    """ Calculate the OOD scores for the given arguments. """
     load_models = LoadModels()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-    ood_batch_size = int(args.ood_batch_size)
+    ood_batch_size = int(args.ood_batch_size) if ood_batch_size is None else int(ood_batch_size)
     num_samples = int(args.ood_num_samples)
-    fit_dataset_name = args.fit_dataset
+    fit_dataset_name = args.fit_dataset if fit_dataset_name is None else fit_dataset_name
     model_type = args.model_type
     plot = args.plot
-
     # List the name of checkpoints for each subfolder
-    data_path = path.join(OUTPUT_DIR, f"{model_type}_{fit_dataset_name}")
-    checkpoints = [f for f in listdir(data_path) if f.endswith('.pt')]
+    data_path = path.join(OUTPUT_DIR, f"{model_type}_{fit_dataset_name}") if data_path is None else data_path
+    checkpoints = [f for f in listdir(data_path) if f.endswith('.pt')] if checkpoints is None else checkpoints
 
     if not checkpoints:
         raise FileNotFoundError(f"No checkpoints found in {data_path}")
@@ -83,7 +112,7 @@ def main():
         fit_loader = DataLoader(fit_test, batch_size=ood_batch_size, shuffle=True)
 
         # Fit Gaussians to the log of the gradient features
-        means, variances, _ = feature_extractor.fit_gaussians_to_log_features(fit_loader, data_path, ood_batch_size)
+        means, variances, _ = feature_extractor.fit_gaussians_to_log_features(fit_loader, data_path, ood_batch_size, checkpoint)
         ood_scores_extractor.ood_scores_on_batches(fit_test, ood_batch_size, means, variances, num_samples=num_samples, checkpoint=checkpoint, fit=True)
 
         # Load other dataset_name as test

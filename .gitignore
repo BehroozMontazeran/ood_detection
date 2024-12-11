@@ -10,6 +10,9 @@ glow_model_
 test.ipynb
 __pycache__
 .vscode
+augmented_test_dataset
+AUROC
+
 
 # Exclude files from being ignored
 !data/datasets.py

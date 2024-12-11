@@ -7,7 +7,7 @@ import torch
 from data.datasets import (CelebAWrapper, CIFAR10Wrapper, FashionMNISTWrapper,
                            FlippedOmniglotWrapper, GTSRBWrapper,
                            ImageNet32Wrapper, MNISTWrapper, OmniglotWrapper,
-                           SVHNWrapper)
+                           SVHNWrapper)#, MixedWrapper)
                         #  get_celeba, get_cifar10,
                         #    get_fashionmnist, get_flipped_omniglot,
                         #    get_imagenet32, get_mnist, get_omniglot, get_svhn)
@@ -18,6 +18,7 @@ from utilities.routes import PROJECT_ROOT
 to_dataset_wrapper = {
     DS_Wrapper.name: DS_Wrapper for DS_Wrapper in
     [
+        # MixedWrapper,
         ImageNet32Wrapper,
         SVHNWrapper,
         CelebAWrapper,

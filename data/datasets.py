@@ -9,17 +9,24 @@ import shutil
 import zipfile
 from abc import ABC, abstractmethod
 from io import BytesIO
-from os import listdir, path
+from os import listdir, path, makedirs
 
 import lmdb
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
+from torchvision.transforms import functional
+
 from PIL import Image
 from torch.utils.data.dataset import Dataset
+from torch.utils.data import ConcatDataset
 from torchvision import datasets, transforms
+from torchvision.datasets import DatasetFolder
+
+from torch.utils.data import TensorDataset
 from tqdm import tqdm
+
 
 from utilities.routes import DATAROOT
 
@@ -28,6 +35,32 @@ from utilities.routes import DATAROOT
 
 
 N_BITS = 8
+
+# Test version of applying perturbation on Training sets
+# def apply_perturbation(image, perturb_rate=0.1):
+#     """Apply perturbations to the image (PIL format) based on the perturb_rate."""
+#     image = np.array(image)  # Convert PIL image to numpy array for pixel manipulation
+#     height, width, channels = image.shape  # Extract height, width, and number of channels
+    
+#     # Total number of pixels
+#     num_pixels = height * width
+    
+#     # Create a mask with perturb_rate chance for each pixel to be perturbed
+#     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+
+#     # Apply mask to perturb pixel values
+#     for idx, should_perturb in enumerate(mask):
+#         if should_perturb:
+#             row = idx // width  # Calculate row index based on the width of the image
+#             col = idx % width   # Calculate column index based on the width of the image
+            
+#             # Replace with random pixel values for each RGB channel
+#             image[row, col] = np.random.randint(0, 256, size=channels)
+    
+#     return Image.fromarray(image.astype(np.uint8))  # Convert back to PIL image
+def ppm_loader(filepath):
+    """Loads a .ppm image file."""
+    return Image.open(filepath).convert("RGB")
 
 
 def preprocess(x):
@@ -170,7 +203,173 @@ class FashionMNISTWrapper(DatasetWrapper):
             dataroot, train=False, download=download, transform=transform
         )
 
+class CIFAR10DatasetFolder(DatasetFolder):
+    """Custom DatasetFolder for CIFAR10 with a specific name."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = "cifar10"
 
+    def __repr__(self):
+        return f"Dataset({self.name})"
+
+# Train augmentation with sweeping the train and test datasets to increase the number of real test samples and synthessized trained samples
+# class CIFAR10Wrapper(DatasetWrapper):
+#     """CIFAR10 dataset wrapper."""
+#     name = "cifar10"
+#     image_shape = (32, 32, 3)
+#     num_classes = 10
+#     pixel_range = (0.5, 0.5)
+
+#     @staticmethod
+#     def root(dataroot):
+#         """Returns the root directory for CIFAR10."""
+#         return path.join(dataroot, "CIFAR10")
+
+#     # @staticmethod
+#     # def get_augmentations() -> list:
+#     #     """CIFAR10-specific augmentations."""
+#     #     return [
+#     #         transforms.RandomAffine(0, translate=(0.1, 0.1)),
+#     #         transforms.RandomHorizontalFlip(),
+#     #         transforms.ColorJitter(brightness=0.2, contrast=0.2),
+#     #         transforms.RandomRotation(degrees=10),
+#     #         # apply_perturbation, # When no perturbation is needed, remove this part
+#     #     ]
+
+#     @staticmethod
+#     def default_preprocessing() -> list:
+#         return [transforms.ToTensor(), preprocess]
+
+#     @staticmethod
+#     def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = CIFAR10Wrapper.create_transform(augment)
+#         augmented_train_dir = path.join(dataroot, "CIFAR10", "augmented_train_dataset")
+
+#         # Use DatasetFolder to load the augmented dataset
+#         return CIFAR10DatasetFolder(
+#             root=augmented_train_dir,
+#             loader=ppm_loader,          # Custom loader for .ppm images
+#             extensions=("ppm",),        # Specify file extensions to include
+#             transform=transform,        # Apply preprocessing transformations
+#         )
+
+#     @staticmethod
+#     def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = CIFAR10Wrapper.create_transform(augment=False)
+#         return datasets.CIFAR10(
+#             CIFAR10Wrapper.root(dataroot),
+#             train=True,
+#             transform=transform,
+#             target_transform=one_hot_encode,
+#             download=download,
+#         )
+
+
+# Used for augmented test dataset
+# class CIFAR10Wrapper(DatasetWrapper):
+#     """CIFAR10 dataset wrapper."""
+#     name = "cifar10"
+#     image_shape = (32, 32, 3)
+#     num_classes = 10
+#     pixel_range = (0.5, 0.5)
+
+#     @staticmethod
+#     def root(dataroot):
+#         """Returns the root directory for CIFAR10."""
+#         return path.join(dataroot, "CIFAR10")
+
+#     @staticmethod
+#     def get_augmentations() -> list:
+#         """CIFAR10-specific augmentations."""
+#         return [
+#             transforms.RandomAffine(0, translate=(0.1, 0.1)),
+#             transforms.RandomHorizontalFlip(),
+#             # apply_perturbation, # When no perturbation is needed, remove this part
+#         ]
+
+#     @staticmethod
+#     def default_preprocessing() -> list:
+#         return [transforms.ToTensor(), preprocess]
+
+#     @staticmethod
+#     def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = CIFAR10Wrapper.create_transform(augment)
+#         return datasets.CIFAR10(
+#             CIFAR10Wrapper.root(dataroot),
+#             train=True,
+#             transform=transform,
+#             target_transform=one_hot_encode,
+#             download=download,
+#         )
+
+#     @staticmethod
+#     def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = CIFAR10Wrapper.create_transform(augment=False)
+
+
+#         augmented_test_dir = path.join(dataroot, "CIFAR10", "augmented_test_dataset")
+
+#         # Use DatasetFolder to load the augmented dataset
+#         return CIFAR10DatasetFolder(
+#             root=augmented_test_dir,
+#             loader=ppm_loader,          # Custom loader for .ppm images
+#             extensions=("ppm",),        # Specify file extensions to include
+#             transform=transform,        # Apply preprocessing transformations
+#         )
+    # @staticmethod
+    # def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+    #     if transform is None:
+    #         transform = CIFAR10Wrapper.create_transform(augment=False)
+
+    #     # Load the original test dataset
+    #     base_test_dataset = datasets.CIFAR10(
+    #         CIFAR10Wrapper.root(dataroot),
+    #         train=False,
+    #         transform=transform,
+    #         target_transform=one_hot_encode,
+    #         download=download,
+    #     )
+
+    #     # Define test-time augmentations
+    #     test_augmentations = transforms.Compose([
+    #         transforms.RandomAffine(degrees=5, translate=(0.02, 0.02)),  # Small affine transformations
+    #         transforms.ColorJitter(brightness=0.1, contrast=0.1),       # Brightness/contrast adjustments TODO: Check if we should add this to training as well
+    #         transforms.RandomHorizontalFlip(p=0.5),                    # Horizontal flips
+    #     ])
+
+    #     # Generate augmented datasets
+    #     augmented_datasets = [base_test_dataset]
+    #     for _ in range(4):  # Create 4 additional copies
+    #         augmented_datasets.append(datasets.CIFAR10(
+    #             CIFAR10Wrapper.root(dataroot),
+    #             train=False,
+    #             transform=transforms.Compose([test_augmentations, transform]),
+    #             target_transform=one_hot_encode,
+    #             download=download,
+    #         ))
+
+    #     # Combine original and augmented datasets
+    #     return ConcatDataset(augmented_datasets)
+
+
+    # @staticmethod
+    # def get_test(dataroot: str = DATAROOT, transform=None, download: bool=True) -> Dataset:
+    #     if transform is None:
+    #         transform = CIFAR10Wrapper.create_transform(augment=False)
+    #     return datasets.CIFAR10(
+    #         CIFAR10Wrapper.root(dataroot),
+    #         train=False,
+    #         transform=transform,
+    #         target_transform=one_hot_encode,
+    #         download=download,)
+        
+
+
+# Normal way of loading train and test datasets
 class CIFAR10Wrapper(DatasetWrapper):
     """CIFAR10 dataset wrapper."""
     name = "cifar10"
@@ -189,6 +388,7 @@ class CIFAR10Wrapper(DatasetWrapper):
         return [
             transforms.RandomAffine(0, translate=(0.1, 0.1)),
             transforms.RandomHorizontalFlip(),
+            # apply_perturbation, # When no perturbation is needed, remove this part
         ]
 
     @staticmethod
@@ -199,14 +399,28 @@ class CIFAR10Wrapper(DatasetWrapper):
     def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool=True) -> Dataset:
         if transform is None:
             transform = CIFAR10Wrapper.create_transform(augment)
-        return datasets.CIFAR10(
-            CIFAR10Wrapper.root(dataroot),
-            train=True,
-            transform=transform,
-            target_transform=one_hot_encode,
-            download=download,
+        synthetic_samples = path.join(dataroot, "CIFAR10", "ppm_generated_samples")
+
+        # Use DatasetFolder to load the augmented dataset
+        return CIFAR10DatasetFolder(
+            root=synthetic_samples,
+            loader=ppm_loader,          # Custom loader for .ppm images
+            extensions=("ppm",),        # Specify file extensions to include
+            transform=transform,        # Apply preprocessing transformations
         )
 
+
+    # @staticmethod
+    # def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool=True) -> Dataset:
+    #     if transform is None:
+    #         transform = CIFAR10Wrapper.create_transform(augment)
+        # return datasets.CIFAR10(
+        #     CIFAR10Wrapper.root(dataroot),
+        #     train=True,
+        #     transform=transform,
+        #     target_transform=one_hot_encode,
+        #     download=download,
+        # )
 
     @staticmethod
     def get_test(dataroot: str = DATAROOT, transform=None, download: bool=True) -> Dataset:
@@ -214,11 +428,66 @@ class CIFAR10Wrapper(DatasetWrapper):
             transform = CIFAR10Wrapper.create_transform(augment=False)
         return datasets.CIFAR10(
             CIFAR10Wrapper.root(dataroot),
-            train=False,
+            train=True,
             transform=transform,
             target_transform=one_hot_encode,
             download=download,)
-        
+
+
+
+# # Normal way of loading train and test datasets
+# class CIFAR10Wrapper(DatasetWrapper):
+#     """CIFAR10 dataset wrapper."""
+#     name = "cifar10"
+#     image_shape = (32, 32, 3)
+#     num_classes = 10
+#     pixel_range = (0.5, 0.5)
+
+#     @staticmethod
+#     def root(dataroot):
+#         """Returns the root directory for CIFAR10."""
+#         return path.join(dataroot, "CIFAR10")
+
+#     @staticmethod
+#     def get_augmentations() -> list:
+#         """CIFAR10-specific augmentations."""
+#         return [
+#             transforms.RandomAffine(0, translate=(0.1, 0.1)),
+#             transforms.RandomHorizontalFlip(),
+#             # apply_perturbation, # When no perturbation is needed, remove this part
+#         ]
+
+#     @staticmethod
+#     def default_preprocessing() -> list:
+#         return [transforms.ToTensor(), preprocess]
+
+#     @staticmethod
+#     def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = CIFAR10Wrapper.create_transform(augment)
+#         return datasets.CIFAR10(
+#             CIFAR10Wrapper.root(dataroot),
+#             train=True,
+#             transform=transform,
+#             target_transform=one_hot_encode,
+#             download=download,
+#         )
+
+#     @staticmethod
+#     def get_test(dataroot: str = DATAROOT, transform=None, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = CIFAR10Wrapper.create_transform(augment=False)
+#         return datasets.CIFAR10(
+#             CIFAR10Wrapper.root(dataroot),
+#             train=False,
+#             transform=transform,
+#             target_transform=one_hot_encode,
+#             download=download,)
+
+
+
+
+
 
 
 class SVHNWrapper(DatasetWrapper):
@@ -235,7 +504,7 @@ class SVHNWrapper(DatasetWrapper):
     @staticmethod
     def get_augmentations() -> list:
         """SVHN-specific augmentations."""
-        return [transforms.RandomAffine(0, translate=(0.1, 0.1))]
+        return [transforms.RandomAffine(0, translate=(0.1, 0.1)),]#,apply_perturbation,]
 
     @staticmethod
     def default_preprocessing() -> list:
@@ -264,42 +533,118 @@ class SVHNWrapper(DatasetWrapper):
             download=download,
         )
 
+class GTSRBDatasetFolder(DatasetFolder):
+    """Custom DatasetFolder for GTSRB with a specific name."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = "gtsrb"  # Define the name of the dataset
+
+    def __repr__(self):
+        return f"Dataset({self.name})"
+
+
 class GTSRBWrapper(DatasetWrapper):
     """For the German Traffic Sign Recognition Benchmark (Houben et al. 2013)"""
     name = "gtsrb"
     image_shape = (32, 32, 3)
     num_classes = 40
     pixel_range = (-0.5, 0.5)
+    perturb_rate = 0.1
 
     @staticmethod
     def root(dataroot):
         """Returns the root directory for GTSRB"""
         return path.join(dataroot, "GTSRB")
 
-    @staticmethod
-    def get_augmentations() -> list:
-        """GTSRB-specific augmentations."""
-        return [
-            transforms.RandomAffine(0, translate=(0.1, 0.1)),
-            transforms.RandomHorizontalFlip(),
-        ]
-    
+    # @staticmethod
+    # def get_augmentations() -> list:
+    #     """GTSRB-specific augmentations."""
+    #     return [
+    #         transforms.RandomAffine(0, translate=(0.1, 0.1)),
+    #         transforms.RandomHorizontalFlip(),
+    #         transforms.ColorJitter(brightness=0.2, contrast=0.2),
+    #         transforms.RandomRotation(degrees=10),
+    #         # apply_perturbation,
+    #     ]
+    #Ensures spatial augmentations are applied before resizing.TODO: Check if this is the correct order. the first return
+    # Converts to a tensor before adding perturbations, so add_perturbation can work with tensor data.
+    # Applies preprocess last to prepare the data for the model.
+
     @staticmethod
     def default_preprocessing() -> list:
+        # return [transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), transforms.ToTensor(), preprocess]
+        # return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), GTSRBWrapper.apply_perturbation, preprocess]
         return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), preprocess]
-   
+
+    # @staticmethod
+    # def apply_perturbation(image, perturb_rate=0.1):
+    #     """Apply perturbations to the image based on the perturb_rate."""
+    #     num_pixels = image.numel()  # Total number of pixels (channels x height x width)
+    #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+        
+    #     # Flatten the image, apply perturbation mask, then reshape back
+    #     image_flat = image.view(-1)  # Flatten to apply mask
+    #     perturb_values = torch.randint(0, 256, image_flat.shape, dtype=torch.float32) / 255.0
+    #     image_flat[mask] = perturb_values[mask]  # Apply perturbation
+    #     image = image_flat.view(image.shape)  # Reshape to original image shape
+    #     return image
+    # @staticmethod
+    # def apply_perturbation(image, perturb_rate=0.2):
+    #     """Apply perturbations to the image (PIL format) based on the perturb_rate."""
+    #     image = np.array(image)  # Convert PIL image to numpy array for pixel manipulation
+    #     height, width, channels = image.shape  # Extract height, width, and number of channels
+        
+    #     # Total number of pixels
+    #     num_pixels = height * width
+        
+    #     # Create a mask with perturb_rate chance for each pixel to be perturbed
+    #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+
+    #     # Apply mask to perturb pixel values
+    #     for idx, should_perturb in enumerate(mask):
+    #         if should_perturb:
+    #             row = idx // width  # Calculate row index based on the width of the image
+    #             col = idx % width   # Calculate column index based on the width of the image
+                
+    #             # Replace with random pixel values for each RGB channel
+    #             image[row, col] = np.random.randint(0, 256, size=channels)
+        
+    #     return Image.fromarray(image.astype(np.uint8))  # Convert back to PIL image
+
     @staticmethod
     def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
         if transform is None:
             transform = GTSRBWrapper.create_transform(augment)
+            # Create base transform with augmentations and default preprocessing
+            # base_transform = GTSRBWrapper.create_transform(augment)
+            # transform = transforms.Compose([
+            #     base_transform,
+            #     transforms.Lambda(lambda img: GTSRBWrapper.apply_perturbation(img, perturb_rate=GTSRBWrapper.perturb_rate)),
+            # ])
+            # transform = transforms.Compose(
+            #     GTSRBWrapper.get_augmentations() +
+            #     [*GTSRBWrapper.add_perturbation, *GTSRBWrapper.default_preprocessing()]
+            # )
+        augmented_test_dir = path.join(dataroot, "GTSRB", "ppm_generated_samples")
 
-        return datasets.GTSRB(
-            GTSRBWrapper.root(dataroot),
-            split="train",
-            transform=transform,
-            download=download,
-        )
+        # Use DatasetFolder to load the augmented dataset
+        return GTSRBDatasetFolder(
+            root=augmented_test_dir,
+            loader=ppm_loader,          # Custom loader for .ppm images
+            extensions=("ppm",),        # Specify file extensions to include
+            transform=transform,        # Apply preprocessing transformations
+        ) 
+    # @staticmethod
+    # def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
+    #     if transform is None:
+    #         transform = GTSRBWrapper.create_transform(augment)
 
+    #     return datasets.GTSRB(
+    #         GTSRBWrapper.root(dataroot),
+    #         split="train",
+    #         transform=transform,
+    #         download=download,
+    #     )
     @staticmethod
     def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
         if transform is None:
@@ -307,10 +652,259 @@ class GTSRBWrapper(DatasetWrapper):
 
         return datasets.GTSRB(
             GTSRBWrapper.root(dataroot),
-            split="test",
+            split="train",
             transform=transform,
             download=download,
         )
+    # @staticmethod
+    # def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+    #     if transform is None:
+    #         transform = GTSRBWrapper.create_transform(augment=False)
+
+
+    #     augmented_test_dir = path.join(dataroot, "GTSRB", "augmented_test_dataset")
+
+    #     # Use DatasetFolder to load the augmented dataset
+    #     return GTSRBDatasetFolder(
+    #         root=augmented_test_dir,
+    #         loader=ppm_loader,          # Custom loader for .ppm images
+    #         extensions=("ppm",),        # Specify file extensions to include
+    #         transform=transform,        # Apply preprocessing transformations
+    #     )
+
+
+
+
+
+
+
+# Using the Augmentation for Tesing
+# class GTSRBWrapper(DatasetWrapper):
+#     """For the German Traffic Sign Recognition Benchmark (Houben et al. 2013)"""
+#     name = "gtsrb"
+#     image_shape = (32, 32, 3)
+#     num_classes = 40
+#     pixel_range = (-0.5, 0.5)
+#     perturb_rate = 0.1
+
+#     @staticmethod
+#     def root(dataroot):
+#         """Returns the root directory for GTSRB"""
+#         return path.join(dataroot, "GTSRB")
+
+#     @staticmethod
+#     def get_augmentations() -> list:
+#         """GTSRB-specific augmentations."""
+#         return [
+#             transforms.RandomAffine(0, translate=(0.1, 0.1)),
+#             transforms.RandomHorizontalFlip(),
+#             # apply_perturbation,
+#         ]
+#     #Ensures spatial augmentations are applied before resizing.TODO: Check if this is the correct order. the first return
+#     # Converts to a tensor before adding perturbations, so add_perturbation can work with tensor data.
+#     # Applies preprocess last to prepare the data for the model.
+
+#     @staticmethod
+#     def default_preprocessing() -> list:
+#         # return [transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), transforms.ToTensor(), preprocess]
+#         # return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), GTSRBWrapper.apply_perturbation, preprocess]
+#         return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), preprocess]
+
+#     # @staticmethod
+#     # def apply_perturbation(image, perturb_rate=0.1):
+#     #     """Apply perturbations to the image based on the perturb_rate."""
+#     #     num_pixels = image.numel()  # Total number of pixels (channels x height x width)
+#     #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+        
+#     #     # Flatten the image, apply perturbation mask, then reshape back
+#     #     image_flat = image.view(-1)  # Flatten to apply mask
+#     #     perturb_values = torch.randint(0, 256, image_flat.shape, dtype=torch.float32) / 255.0
+#     #     image_flat[mask] = perturb_values[mask]  # Apply perturbation
+#     #     image = image_flat.view(image.shape)  # Reshape to original image shape
+#     #     return image
+#     # @staticmethod
+#     # def apply_perturbation(image, perturb_rate=0.2):
+#     #     """Apply perturbations to the image (PIL format) based on the perturb_rate."""
+#     #     image = np.array(image)  # Convert PIL image to numpy array for pixel manipulation
+#     #     height, width, channels = image.shape  # Extract height, width, and number of channels
+        
+#     #     # Total number of pixels
+#     #     num_pixels = height * width
+        
+#     #     # Create a mask with perturb_rate chance for each pixel to be perturbed
+#     #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+
+#     #     # Apply mask to perturb pixel values
+#     #     for idx, should_perturb in enumerate(mask):
+#     #         if should_perturb:
+#     #             row = idx // width  # Calculate row index based on the width of the image
+#     #             col = idx % width   # Calculate column index based on the width of the image
+                
+#     #             # Replace with random pixel values for each RGB channel
+#     #             image[row, col] = np.random.randint(0, 256, size=channels)
+        
+#     #     return Image.fromarray(image.astype(np.uint8))  # Convert back to PIL image
+
+#     @staticmethod
+#     def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = GTSRBWrapper.create_transform(augment)
+#             # Create base transform with augmentations and default preprocessing
+#             # base_transform = GTSRBWrapper.create_transform(augment)
+#             # transform = transforms.Compose([
+#             #     base_transform,
+#             #     transforms.Lambda(lambda img: GTSRBWrapper.apply_perturbation(img, perturb_rate=GTSRBWrapper.perturb_rate)),
+#             # ])
+#             # transform = transforms.Compose(
+#             #     GTSRBWrapper.get_augmentations() +
+#             #     [*GTSRBWrapper.add_perturbation, *GTSRBWrapper.default_preprocessing()]
+#             # )
+#         return datasets.GTSRB(
+#         GTSRBWrapper.root(dataroot),
+#         split="train",
+#         transform=transform,
+#         download=download,
+#         )  
+#     # @staticmethod
+#     # def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
+#     #     if transform is None:
+#     #         transform = GTSRBWrapper.create_transform(augment)
+
+#     #     return datasets.GTSRB(
+#     #         GTSRBWrapper.root(dataroot),
+#     #         split="train",
+#     #         transform=transform,
+#     #         download=download,
+#     #     )
+
+#     @staticmethod
+#     def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = GTSRBWrapper.create_transform(augment=False)
+
+
+#         augmented_test_dir = path.join(dataroot, "GTSRB", "augmented_test_dataset")
+
+#         # Use DatasetFolder to load the augmented dataset
+#         return GTSRBDatasetFolder(
+#             root=augmented_test_dir,
+#             loader=ppm_loader,          # Custom loader for .ppm images
+#             extensions=("ppm",),        # Specify file extensions to include
+#             transform=transform,        # Apply preprocessing transformations
+#         )
+
+
+
+
+# class GTSRBWrapper(DatasetWrapper):
+#     """For the German Traffic Sign Recognition Benchmark (Houben et al. 2013)"""
+#     name = "gtsrb"
+#     image_shape = (32, 32, 3)
+#     num_classes = 40
+#     pixel_range = (-0.5, 0.5)
+#     perturb_rate = 0.1
+
+#     @staticmethod
+#     def root(dataroot):
+#         """Returns the root directory for GTSRB"""
+#         return path.join(dataroot, "GTSRB")
+
+#     @staticmethod
+#     def get_augmentations() -> list:
+#         """GTSRB-specific augmentations."""
+#         return [
+#             transforms.RandomAffine(0, translate=(0.1, 0.1)),
+#             transforms.RandomHorizontalFlip(),
+#             # apply_perturbation,
+#         ]
+#     #Ensures spatial augmentations are applied before resizing.TODO: Check if this is the correct order. the first return
+#     # Converts to a tensor before adding perturbations, so add_perturbation can work with tensor data.
+#     # Applies preprocess last to prepare the data for the model.
+
+#     @staticmethod
+#     def default_preprocessing() -> list:
+#         # return [transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), transforms.ToTensor(), GTSRBWrapper.apply_perturbation, preprocess]
+#         # return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), GTSRBWrapper.apply_perturbation, preprocess]
+#         return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), preprocess]
+
+#     # @staticmethod
+#     # def apply_perturbation(image, perturb_rate=0.1):
+#     #     """Apply perturbations to the image based on the perturb_rate."""
+#     #     num_pixels = image.numel()  # Total number of pixels (channels x height x width)
+#     #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+        
+#     #     # Flatten the image, apply perturbation mask, then reshape back
+#     #     image_flat = image.view(-1)  # Flatten to apply mask
+#     #     perturb_values = torch.randint(0, 256, image_flat.shape, dtype=torch.float32) / 255.0
+#     #     image_flat[mask] = perturb_values[mask]  # Apply perturbation
+#     #     image = image_flat.view(image.shape)  # Reshape to original image shape
+#     #     return image
+#     # @staticmethod
+#     # def apply_perturbation(image, perturb_rate=0.2):
+#     #     """Apply perturbations to the image (PIL format) based on the perturb_rate."""
+#     #     image = np.array(image)  # Convert PIL image to numpy array for pixel manipulation
+#     #     height, width, channels = image.shape  # Extract height, width, and number of channels
+        
+#     #     # Total number of pixels
+#     #     num_pixels = height * width
+        
+#     #     # Create a mask with perturb_rate chance for each pixel to be perturbed
+#     #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+
+#     #     # Apply mask to perturb pixel values
+#     #     for idx, should_perturb in enumerate(mask):
+#     #         if should_perturb:
+#     #             row = idx // width  # Calculate row index based on the width of the image
+#     #             col = idx % width   # Calculate column index based on the width of the image
+                
+#     #             # Replace with random pixel values for each RGB channel
+#     #             image[row, col] = np.random.randint(0, 256, size=channels)
+        
+#     #     return Image.fromarray(image.astype(np.uint8))  # Convert back to PIL image
+
+#     @staticmethod
+#     def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = GTSRBWrapper.create_transform(augment)
+#             # Create base transform with augmentations and default preprocessing
+#             # base_transform = GTSRBWrapper.create_transform(augment)
+#             # transform = transforms.Compose([
+#             #     base_transform,
+#             #     transforms.Lambda(lambda img: GTSRBWrapper.apply_perturbation(img, perturb_rate=GTSRBWrapper.perturb_rate)),
+#             # ])
+#             # transform = transforms.Compose(
+#             #     GTSRBWrapper.get_augmentations() +
+#             #     [*GTSRBWrapper.add_perturbation, *GTSRBWrapper.default_preprocessing()]
+#             # )
+#         return datasets.GTSRB(
+#         GTSRBWrapper.root(dataroot),
+#         split="train",
+#         transform=transform,
+#         download=download,
+#         )  
+#     # @staticmethod
+#     # def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
+#     #     if transform is None:
+#     #         transform = GTSRBWrapper.create_transform(augment)
+
+#     #     return datasets.GTSRB(
+#     #         GTSRBWrapper.root(dataroot),
+#     #         split="train",
+#     #         transform=transform,
+#     #         download=download,
+#     #     )
+
+#     @staticmethod
+#     def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = GTSRBWrapper.create_transform(augment=False)
+
+#         return datasets.GTSRB(
+#             GTSRBWrapper.root(dataroot),
+#             split="test",
+#             transform=transform,
+#             download=download,
+#         )
 class OmniglotWrapper(DatasetWrapper):
     """ Omniglot dataset wrapper """
     name = "omniglot"
@@ -371,7 +965,7 @@ class ImageNet32Wrapper(DatasetWrapper):
     @staticmethod
     def root(dataroot):
         """Returns the root directory for IMAGENET32."""
-        return os.path.join(dataroot, "IMAGENET32")
+        return path.join(dataroot, "IMAGENET32")
 
     @staticmethod
     def get_augmentations() -> list:
@@ -379,6 +973,7 @@ class ImageNet32Wrapper(DatasetWrapper):
         return [
             transforms.RandomAffine(0, translate=(0.1, 0.1)),
             transforms.RandomHorizontalFlip(),
+            # apply_perturbation,
         ]
 
     @staticmethod
@@ -506,11 +1101,11 @@ class ImageNet32Wrapper(DatasetWrapper):
             ImageNet32Wrapper.extract_zip(train_zip_path, extract_path)
 
 
-        lmdb_path = os.path.join(ImageNet32Wrapper.root(dataroot), 'train.lmdb')
-        batch_folder = os.path.join(ImageNet32Wrapper.root(dataroot), 'train_batches')
+        lmdb_path = path.join(ImageNet32Wrapper.root(dataroot), 'train.lmdb')
+        batch_folder = path.join(ImageNet32Wrapper.root(dataroot), 'train_batches')
 
         # If LMDB doesn't exist, create it
-        if not os.path.exists(lmdb_path):
+        if not path.exists(lmdb_path):
             ImageNet32Wrapper.create_lmdb_from_batches(lmdb_path, batch_folder, transform)
 
         # Define transformations
@@ -539,11 +1134,11 @@ class ImageNet32Wrapper(DatasetWrapper):
             ImageNet32Wrapper.extract_zip(val_zip_path, extract_path)
 
 
-        lmdb_path = os.path.join(ImageNet32Wrapper.root(dataroot), 'val.lmdb')
-        batch_folder = os.path.join(ImageNet32Wrapper.root(dataroot), 'val_batches')
+        lmdb_path = path.join(ImageNet32Wrapper.root(dataroot), 'val.lmdb')
+        batch_folder = path.join(ImageNet32Wrapper.root(dataroot), 'val_batches')
 
         # If LMDB doesn't exist, create it
-        if not os.path.exists(lmdb_path):
+        if not path.exists(lmdb_path):
             ImageNet32Wrapper.create_lmdb_from_batches(lmdb_path, batch_folder, transform)
 
         # Define transformations
@@ -713,19 +1308,19 @@ class CelebAWrapper(DatasetWrapper):
     @staticmethod
     def root(dataroot):
         """Returns the root directory for CelebA."""
-        return os.path.join(dataroot, "CELEBA")
+        return path.join(dataroot, "CELEBA")
 
     @staticmethod
     def get_split_files(img_folder: str, attributes: dict, split_ratio: float=0.8):
         """Loads or creates train and test split files and physically splits images."""
-        train_split_path = os.path.join(img_folder, "train_imgs")
-        test_split_path = os.path.join(img_folder, "test_imgs")
+        train_split_path = path.join(img_folder, "train_imgs")
+        test_split_path = path.join(img_folder, "test_imgs")
 
-        if os.path.exists(train_split_path) and os.path.exists(test_split_path):
+        if path.exists(train_split_path) and path.exists(test_split_path):
             # If folders already exist, get list of files from them
             print("Loading existing train/test split.")
-            train_files = [os.path.join("train_imgs", fname) for fname in os.listdir(train_split_path)]
-            test_files = [os.path.join("test_imgs", fname) for fname in os.listdir(test_split_path)]
+            train_files = [path.join("train_imgs", fname) for fname in os.listdir(train_split_path)]
+            test_files = [path.join("test_imgs", fname) for fname in os.listdir(test_split_path)]
         else:
             # Create folders for train and test splits
             os.makedirs(train_split_path, exist_ok=True)
@@ -742,21 +1337,25 @@ class CelebAWrapper(DatasetWrapper):
 
             # Move files into their respective directories
             for img_name in tqdm(train_files, desc="Moving train files"):
-                source_path = os.path.join(img_folder, img_name)
-                target_path = os.path.join(train_split_path, img_name)
+                source_path = path.join(img_folder, img_name)
+                target_path = path.join(train_split_path, img_name)
                 shutil.move(source_path, target_path)  # Move file to train folder
 
             for img_name in tqdm(test_files, desc="Moving test files"):
-                source_path = os.path.join(img_folder, img_name)
-                target_path = os.path.join(test_split_path, img_name)
+                source_path = path.join(img_folder, img_name)
+                target_path = path.join(test_split_path, img_name)
                 shutil.move(source_path, target_path)  # Move file to test folder
 
             # Update paths with new locations
-            train_files = [os.path.join("train_imgs", fname) for fname in train_files]
-            test_files = [os.path.join("test_imgs", fname) for fname in test_files]
+            train_files = [path.join("train_imgs", fname) for fname in train_files]
+            test_files = [path.join("test_imgs", fname) for fname in test_files]
 
         return train_files, test_files
-
+    # # TODO: remove for no perturbation
+    # @staticmethod
+    # def get_augmentations() -> list:
+    #     """CELEBA-specific augmentations."""
+    #     return [apply_perturbation,]
 
     @staticmethod
     def default_preprocessing() -> list:
@@ -789,7 +1388,7 @@ class CelebAWrapper(DatasetWrapper):
         env = lmdb.open(lmdb_path, map_size=int(1e10))
         with env.begin(write=True) as txn:
             for idx, img_name in tqdm(enumerate(data_files), desc=f"Creating LMDB at {lmdb_path}", total=len(data_files)):
-                img_path = os.path.join(images_folder, img_name)
+                img_path = path.join(images_folder, img_name)
                 img = Image.open(img_path).convert("RGB")
                 if transform:
                     img = transform(img)
@@ -825,13 +1424,13 @@ class CelebAWrapper(DatasetWrapper):
         """Returns the training dataset."""
         train_zip_path = path.join(CelebAWrapper.root(dataroot), 'archive.zip')
         images_folder = path.join(CelebAWrapper.root(dataroot), 'img')
-        attr_file = os.path.join(CelebAWrapper.root(dataroot), "list_attr_celeba.csv")
+        attr_file = path.join(CelebAWrapper.root(dataroot), "list_attr_celeba.csv")
 
-        if not os.path.exists(images_folder) or not os.path.exists(attr_file):
+        if not path.exists(images_folder) or not path.exists(attr_file):
             CelebAWrapper.extract_zip(train_zip_path, images_folder)
 
-        lmdb_path = os.path.join(CelebAWrapper.root(dataroot), 'train.lmdb')
-        if not os.path.exists(lmdb_path):
+        lmdb_path = path.join(CelebAWrapper.root(dataroot), 'train.lmdb')
+        if not path.exists(lmdb_path):
             attributes = CelebAWrapper.load_attributes(attr_file)
             train_files, _ = CelebAWrapper.get_split_files(images_folder, attributes)
             CelebAWrapper.create_lmdb_from_images(lmdb_path, images_folder, train_files , attributes, transform)
@@ -854,13 +1453,13 @@ class CelebAWrapper(DatasetWrapper):
         """Returns the validation dataset."""
         val_zip_path = path.join(CelebAWrapper.root(dataroot), 'archive.zip')
         images_folder = path.join(CelebAWrapper.root(dataroot), 'img')
-        attr_file = os.path.join(CelebAWrapper.root(dataroot), "list_attr_celeba.csv")
+        attr_file = path.join(CelebAWrapper.root(dataroot), "list_attr_celeba.csv")
 
-        if not os.path.exists(images_folder) or not os.path.exists(attr_file):
+        if not path.exists(images_folder) or not path.exists(attr_file):
             CelebAWrapper.extract_zip(val_zip_path, images_folder)
 
-        lmdb_path = os.path.join(CelebAWrapper.root(dataroot), 'val.lmdb')
-        if not os.path.exists(lmdb_path):
+        lmdb_path = path.join(CelebAWrapper.root(dataroot), 'val.lmdb')
+        if not path.exists(lmdb_path):
             attributes = CelebAWrapper.load_attributes(attr_file)
             _, test_files = CelebAWrapper.get_split_files(images_folder, attributes)
             CelebAWrapper.create_lmdb_from_images(lmdb_path, images_folder, test_files, attributes, transform)
@@ -878,7 +1477,126 @@ class CelebAWrapper(DatasetWrapper):
         tensor_dataset.name = CelebAWrapper.name  # Set the name attribute directly
         return tensor_dataset
 
+class MixedWrapper(DatasetWrapper):
+    """Mixed dataset wrapper."""
 
+    name = "mixed"
+    image_shape = (32, 32, 3)
+    num_classes = 1000
+
+    def __init__(self, dataset1, dataset2, balance_ratio=0.5):
+        """
+        Initializes the combined dataset.
+
+        Args:
+            dataset1: First dataset (ImageNet32).
+            dataset2: Second dataset (GTSRB).
+            balance_ratio: Fraction of samples from dataset1 in each batch.
+                            A value of 0.5 means equal samples from both datasets.
+        """
+        self.dataset1 = dataset1
+        self.dataset2 = dataset2
+        self.balance_ratio = balance_ratio
+        self.length1 = len(dataset1)
+        self.length2 = len(dataset2)
+        self.total_length = self.length1 + self.length2
+
+    def __len__(self):
+        return self.total_length
+
+    def __getitem__(self, index):
+        # Decide which dataset to sample from based on the balance ratio
+        if torch.rand(1).item() < self.balance_ratio:
+            dataset, idx = self.dataset1, index % self.length1
+        else:
+            dataset, idx = self.dataset2, index % self.length2
+        image, label = dataset[idx]
+        
+        # Ensure the label is a tensor
+        if not isinstance(label, torch.Tensor):
+            label = torch.tensor(label)
+        
+        return image, label
+
+    @staticmethod
+    def get_train(dataroot: str=DATAROOT, transform=None, augment: bool=True, download: bool=True) -> Dataset:
+        """Loads and combines ImageNet32 and GTSRB training datasets."""
+        imagenet_train = ImageNet32Wrapper.get_train(dataroot)
+        gtsrb_train = GTSRBWrapper.get_train(dataroot)
+        
+        # Combine with a 50% balance ratio for each dataset
+        combined_train_dataset = MixedWrapper(imagenet_train, gtsrb_train, balance_ratio=0.5)
+        return combined_train_dataset
+
+    @staticmethod
+    def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+        """Loads and combines ImageNet32 and GTSRB test datasets."""
+        imagenet_test = ImageNet32Wrapper.get_test(dataroot)
+        gtsrb_test = GTSRBWrapper.get_test(dataroot)
+        
+        # Combine with a 50% balance ratio for each dataset
+        combined_test_dataset = MixedWrapper(imagenet_test, gtsrb_test, balance_ratio=0.5)
+        return combined_test_dataset
+
+
+
+# class CombinedDataset(Dataset):
+#     """A dataset that combines ImageNet32 and GTSRB datasets."""
+
+#     def __init__(self, dataset1, dataset2, balance_ratio=0.5):
+#         """
+#         Initializes the combined dataset.
+
+#         Args:
+#             dataset1: First dataset (ImageNet32).
+#             dataset2: Second dataset (GTSRB).
+#             balance_ratio: Fraction of samples from dataset1 in each batch.
+#                            A value of 0.5 means equal samples from both datasets.
+#         """
+#         self.dataset1 = dataset1
+#         self.dataset2 = dataset2
+#         self.balance_ratio = balance_ratio
+#         self.length1 = len(dataset1)
+#         self.length2 = len(dataset2)
+#         self.total_length = self.length1 + self.length2
+
+#     def __len__(self):
+#         return self.total_length
+
+#     def __getitem__(self, index):
+#         # Decide which dataset to sample from based on the balance ratio
+#         if torch.rand(1).item() < self.balance_ratio:
+#             dataset, idx = self.dataset1, index % self.length1
+#         else:
+#             dataset, idx = self.dataset2, index % self.length2
+#         return dataset[idx]
+
+# # Example usage
+# def load_combined_train_dataset(dataroot):
+#     """Loads and combines ImageNet32 and GTSRB training datasets."""
+#     imagenet_train = ImageNet32Wrapper.get_train(dataroot)
+#     gtsrb_train = GTSRBWrapper.get_train(dataroot)
+    
+#     # Combine with a 50% balance ratio for each dataset
+#     combined_train_dataset = CombinedDataset(imagenet_train, gtsrb_train, balance_ratio=0.5)
+#     return combined_train_dataset
+
+# def load_combined_test_dataset(dataroot):
+#     """Loads and combines ImageNet32 and GTSRB test datasets."""
+#     imagenet_test = ImageNet32Wrapper.get_test(dataroot)
+#     gtsrb_test = GTSRBWrapper.get_test(dataroot)
+    
+#     # Combine with a 50% balance ratio for each dataset
+#     combined_test_dataset = CombinedDataset(imagenet_test, gtsrb_test, balance_ratio=0.5)
+#     return combined_test_dataset
+
+# # DataLoader example
+# dataroot = DATAROOT
+# train_dataset = load_combined_train_dataset(dataroot)
+# train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+
+# test_dataset = load_combined_test_dataset(dataroot)
+# test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
 def flatten(outer):
     """Flattens a list of lists"""

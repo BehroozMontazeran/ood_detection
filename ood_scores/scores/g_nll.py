@@ -34,13 +34,21 @@ class OODScores(FeatureExtractor):
             nll = 0.5 * torch.sum(((layer_features - mu) ** 2) / (sigma2+epsilon) + torch.log(2 * torch.pi * (sigma2+epsilon)), dim=0)
             ood_scores.append(nll)
         
-        return torch.sum(torch.stack(ood_scores))
+        # return torch.sum(torch.stack(ood_scores))
+
+        # TODO: Sum up only scores of those layers that are among max (some % of layers) layers
+        # Sum OOD scores for parts
+        part1_scores = torch.sum(torch.stack(ood_scores[:385]))
+        part2_scores = torch.sum(torch.stack(ood_scores[385:769]))
+        part3_scores = torch.sum(torch.stack(ood_scores[769:])) # :1353
+
+        return torch.stack([part1_scores, part2_scores, part3_scores])
 
     def ood_score(self, new_samples, means, variances):
         """ Compute the OOD score for the new samples using the Gaussian negative log-likelihood method """
         
         # Compute the gradient features for the new batch
-        features, _, _ = self.gradient_features(new_samples)
+        features, num_features, features_scalar = self.gradient_features(new_samples)
 
         # Take the log of each feature in the batch
         log_features = [torch.log(f + 1e-10) for f in features]  # Add small value to avoid log(0)
@@ -49,4 +57,4 @@ class OODScores(FeatureExtractor):
         # Compute OOD score using Gaussian negative log-likelihood
         ood_scores = self.gaussian_negative_log_likelihood(log_features, means, variances)
 
-        return ood_scores
+        return ood_scores, features, num_features, features_scalar

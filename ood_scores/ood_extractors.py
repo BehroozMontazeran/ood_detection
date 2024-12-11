@@ -33,8 +33,14 @@ class OODScoresExtractor(OODScores):
                 makedirs(output_dir)
             file_dir = f"{output_dir}/ood_scores_fit_samples_b{batch_size}_{self.fit_ds_name}_using_checkpoint_{checkpoint_number}.pth"
             if not path.exists(file_dir):
-                ood_scores_fit_samples = self.run_ood_scores(dataset, batch_size, means, variances, num_samples)
-                torch.save(ood_scores_fit_samples, file_dir)
+                ood_scores_fit_samples, features, num_features, features_scalar  = self.run_ood_scores(dataset, batch_size, means, variances, num_samples)
+                torch.save({
+                    'ood_scores': ood_scores_fit_samples,
+                    'features': features,
+                    'num_features': num_features,
+                    'features_scalar': features_scalar
+                }, file_dir)
+                # torch.save(ood_scores_fit_samples, file_dir)
                 print(f"fit_ood_scores of {self.fit_ds_name} is saved in\n {file_dir}")
             else:
                 print(f"fit_ood_scores of {self.fit_ds_name} already exists in\n {file_dir}")
@@ -46,8 +52,14 @@ class OODScoresExtractor(OODScores):
                 makedirs(output_dir)
             file_dir = f"{output_dir}/ood_scores_test_samples_b{batch_size}_{ds_name}_on_{self.fit_ds_name}_using_checkpoint_{checkpoint_number}.pth"
             if not path.exists(file_dir):
-                ood_scores_test_samples = self.run_ood_scores(dataset, batch_size, means, variances, num_samples)
-                torch.save(ood_scores_test_samples, file_dir)
+                ood_scores_test_samples, features, num_features, features_scalar = self.run_ood_scores(dataset, batch_size, means, variances, num_samples)
+                torch.save({
+                    'ood_scores': ood_scores_test_samples,
+                    'features': features,
+                    'num_features': num_features,
+                    'features_scalar': features_scalar
+                }, file_dir)
+                # torch.save(ood_scores_test_samples, file_dir)
                 print(f"Test_ood_scores of {ds_name} is saved in\n {file_dir}")
             else:
                 print(f"Test_ood_scores of {ds_name} already exists in\n {file_dir}")
@@ -64,8 +76,9 @@ class OODScoresExtractor(OODScores):
         for samples, _ in tqdm(loader, desc=f"Calculating ood_scores on {ds_name} samples"):
             samples = samples.to(self.device)
             # Compute the OOD scores for the test samples
-            ood_scores_test_samples.append(self.ood_score(samples, means, variances))
-        return ood_scores_test_samples
+            ood_scores, features, num_features, features_scalar = self.ood_score(samples, means, variances)
+            ood_scores_test_samples.append(ood_scores)
+        return ood_scores_test_samples, features, num_features, features_scalar
 
 class GenerativeModel:
     """Provides a standard interface for anomaly_methods code to interact with all types of models."""

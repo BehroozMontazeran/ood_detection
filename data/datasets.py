@@ -369,6 +369,72 @@ class CIFAR10DatasetFolder(DatasetFolder):
         
 
 
+# Loading from augmented train dataset
+# class CIFAR10Wrapper(DatasetWrapper):
+#     """CIFAR10 dataset wrapper."""
+#     name = "cifar10"
+#     image_shape = (32, 32, 3)
+#     num_classes = 10
+#     pixel_range = (0.5, 0.5)
+
+#     @staticmethod
+#     def root(dataroot):
+#         """Returns the root directory for CIFAR10."""
+#         return path.join(dataroot, "CIFAR10")
+
+#     @staticmethod
+#     def get_augmentations() -> list:
+#         """CIFAR10-specific augmentations."""
+#         return [
+#             transforms.RandomAffine(0, translate=(0.1, 0.1)),
+#             transforms.RandomHorizontalFlip(),
+#             # apply_perturbation, # When no perturbation is needed, remove this part
+#         ]
+
+#     @staticmethod
+#     def default_preprocessing() -> list:
+#         return [transforms.ToTensor(), preprocess]
+
+#     @staticmethod
+#     def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = CIFAR10Wrapper.create_transform(augment)
+#         synthetic_samples = path.join(dataroot, "CIFAR10", "ppm_generated_samples")
+
+#         # Use DatasetFolder to load the augmented dataset
+#         return CIFAR10DatasetFolder(
+#             root=synthetic_samples,
+#             loader=ppm_loader,          # Custom loader for .ppm images
+#             extensions=("ppm",),        # Specify file extensions to include
+#             transform=transform,        # Apply preprocessing transformations
+#         )
+
+
+#     # @staticmethod
+#     # def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool=True) -> Dataset:
+#     #     if transform is None:
+#     #         transform = CIFAR10Wrapper.create_transform(augment)
+#         # return datasets.CIFAR10(
+#         #     CIFAR10Wrapper.root(dataroot),
+#         #     train=True,
+#         #     transform=transform,
+#         #     target_transform=one_hot_encode,
+#         #     download=download,
+#         # )
+
+#     @staticmethod
+#     def get_test(dataroot: str = DATAROOT, transform=None, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = CIFAR10Wrapper.create_transform(augment=False)
+#         return datasets.CIFAR10(
+#             CIFAR10Wrapper.root(dataroot),
+#             train=True,
+#             transform=transform,
+#             target_transform=one_hot_encode,
+#             download=download,)
+
+
+
 # Normal way of loading train and test datasets
 class CIFAR10Wrapper(DatasetWrapper):
     """CIFAR10 dataset wrapper."""
@@ -399,28 +465,13 @@ class CIFAR10Wrapper(DatasetWrapper):
     def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool=True) -> Dataset:
         if transform is None:
             transform = CIFAR10Wrapper.create_transform(augment)
-        synthetic_samples = path.join(dataroot, "CIFAR10", "ppm_generated_samples")
-
-        # Use DatasetFolder to load the augmented dataset
-        return CIFAR10DatasetFolder(
-            root=synthetic_samples,
-            loader=ppm_loader,          # Custom loader for .ppm images
-            extensions=("ppm",),        # Specify file extensions to include
-            transform=transform,        # Apply preprocessing transformations
+        return datasets.CIFAR10(
+            CIFAR10Wrapper.root(dataroot),
+            train=True,
+            transform=transform,
+            target_transform=one_hot_encode,
+            download=download,
         )
-
-
-    # @staticmethod
-    # def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool=True) -> Dataset:
-    #     if transform is None:
-    #         transform = CIFAR10Wrapper.create_transform(augment)
-        # return datasets.CIFAR10(
-        #     CIFAR10Wrapper.root(dataroot),
-        #     train=True,
-        #     transform=transform,
-        #     target_transform=one_hot_encode,
-        #     download=download,
-        # )
 
     @staticmethod
     def get_test(dataroot: str = DATAROOT, transform=None, download: bool=True) -> Dataset:
@@ -428,61 +479,10 @@ class CIFAR10Wrapper(DatasetWrapper):
             transform = CIFAR10Wrapper.create_transform(augment=False)
         return datasets.CIFAR10(
             CIFAR10Wrapper.root(dataroot),
-            train=True,
+            train=False,
             transform=transform,
             target_transform=one_hot_encode,
             download=download,)
-
-
-
-# # Normal way of loading train and test datasets
-# class CIFAR10Wrapper(DatasetWrapper):
-#     """CIFAR10 dataset wrapper."""
-#     name = "cifar10"
-#     image_shape = (32, 32, 3)
-#     num_classes = 10
-#     pixel_range = (0.5, 0.5)
-
-#     @staticmethod
-#     def root(dataroot):
-#         """Returns the root directory for CIFAR10."""
-#         return path.join(dataroot, "CIFAR10")
-
-#     @staticmethod
-#     def get_augmentations() -> list:
-#         """CIFAR10-specific augmentations."""
-#         return [
-#             transforms.RandomAffine(0, translate=(0.1, 0.1)),
-#             transforms.RandomHorizontalFlip(),
-#             # apply_perturbation, # When no perturbation is needed, remove this part
-#         ]
-
-#     @staticmethod
-#     def default_preprocessing() -> list:
-#         return [transforms.ToTensor(), preprocess]
-
-#     @staticmethod
-#     def get_train(dataroot: str = DATAROOT, transform=None, augment: bool = True, download: bool=True) -> Dataset:
-#         if transform is None:
-#             transform = CIFAR10Wrapper.create_transform(augment)
-#         return datasets.CIFAR10(
-#             CIFAR10Wrapper.root(dataroot),
-#             train=True,
-#             transform=transform,
-#             target_transform=one_hot_encode,
-#             download=download,
-#         )
-
-#     @staticmethod
-#     def get_test(dataroot: str = DATAROOT, transform=None, download: bool=True) -> Dataset:
-#         if transform is None:
-#             transform = CIFAR10Wrapper.create_transform(augment=False)
-#         return datasets.CIFAR10(
-#             CIFAR10Wrapper.root(dataroot),
-#             train=False,
-#             transform=transform,
-#             target_transform=one_hot_encode,
-#             download=download,)
 
 
 
@@ -543,119 +543,119 @@ class GTSRBDatasetFolder(DatasetFolder):
         return f"Dataset({self.name})"
 
 
-class GTSRBWrapper(DatasetWrapper):
-    """For the German Traffic Sign Recognition Benchmark (Houben et al. 2013)"""
-    name = "gtsrb"
-    image_shape = (32, 32, 3)
-    num_classes = 40
-    pixel_range = (-0.5, 0.5)
-    perturb_rate = 0.1
+# class GTSRBWrapper(DatasetWrapper):
+#     """For the German Traffic Sign Recognition Benchmark (Houben et al. 2013)"""
+#     name = "gtsrb"
+#     image_shape = (32, 32, 3)
+#     num_classes = 40
+#     pixel_range = (-0.5, 0.5)
+#     perturb_rate = 0.1
 
-    @staticmethod
-    def root(dataroot):
-        """Returns the root directory for GTSRB"""
-        return path.join(dataroot, "GTSRB")
+#     @staticmethod
+#     def root(dataroot):
+#         """Returns the root directory for GTSRB"""
+#         return path.join(dataroot, "GTSRB")
 
-    # @staticmethod
-    # def get_augmentations() -> list:
-    #     """GTSRB-specific augmentations."""
-    #     return [
-    #         transforms.RandomAffine(0, translate=(0.1, 0.1)),
-    #         transforms.RandomHorizontalFlip(),
-    #         transforms.ColorJitter(brightness=0.2, contrast=0.2),
-    #         transforms.RandomRotation(degrees=10),
-    #         # apply_perturbation,
-    #     ]
-    #Ensures spatial augmentations are applied before resizing.TODO: Check if this is the correct order. the first return
-    # Converts to a tensor before adding perturbations, so add_perturbation can work with tensor data.
-    # Applies preprocess last to prepare the data for the model.
+#     # @staticmethod
+#     # def get_augmentations() -> list:
+#     #     """GTSRB-specific augmentations."""
+#     #     return [
+#     #         transforms.RandomAffine(0, translate=(0.1, 0.1)),
+#     #         transforms.RandomHorizontalFlip(),
+#     #         transforms.ColorJitter(brightness=0.2, contrast=0.2),
+#     #         transforms.RandomRotation(degrees=10),
+#     #         # apply_perturbation,
+#     #     ]
+#     #Ensures spatial augmentations are applied before resizing.TODO: Check if this is the correct order. the first return
+#     # Converts to a tensor before adding perturbations, so add_perturbation can work with tensor data.
+#     # Applies preprocess last to prepare the data for the model.
 
-    @staticmethod
-    def default_preprocessing() -> list:
-        # return [transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), transforms.ToTensor(), preprocess]
-        # return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), GTSRBWrapper.apply_perturbation, preprocess]
-        return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), preprocess]
+#     @staticmethod
+#     def default_preprocessing() -> list:
+#         # return [transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), transforms.ToTensor(), preprocess]
+#         # return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), GTSRBWrapper.apply_perturbation, preprocess]
+#         return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), preprocess]
 
-    # @staticmethod
-    # def apply_perturbation(image, perturb_rate=0.1):
-    #     """Apply perturbations to the image based on the perturb_rate."""
-    #     num_pixels = image.numel()  # Total number of pixels (channels x height x width)
-    #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+#     # @staticmethod
+#     # def apply_perturbation(image, perturb_rate=0.1):
+#     #     """Apply perturbations to the image based on the perturb_rate."""
+#     #     num_pixels = image.numel()  # Total number of pixels (channels x height x width)
+#     #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
         
-    #     # Flatten the image, apply perturbation mask, then reshape back
-    #     image_flat = image.view(-1)  # Flatten to apply mask
-    #     perturb_values = torch.randint(0, 256, image_flat.shape, dtype=torch.float32) / 255.0
-    #     image_flat[mask] = perturb_values[mask]  # Apply perturbation
-    #     image = image_flat.view(image.shape)  # Reshape to original image shape
-    #     return image
-    # @staticmethod
-    # def apply_perturbation(image, perturb_rate=0.2):
-    #     """Apply perturbations to the image (PIL format) based on the perturb_rate."""
-    #     image = np.array(image)  # Convert PIL image to numpy array for pixel manipulation
-    #     height, width, channels = image.shape  # Extract height, width, and number of channels
+#     #     # Flatten the image, apply perturbation mask, then reshape back
+#     #     image_flat = image.view(-1)  # Flatten to apply mask
+#     #     perturb_values = torch.randint(0, 256, image_flat.shape, dtype=torch.float32) / 255.0
+#     #     image_flat[mask] = perturb_values[mask]  # Apply perturbation
+#     #     image = image_flat.view(image.shape)  # Reshape to original image shape
+#     #     return image
+#     # @staticmethod
+#     # def apply_perturbation(image, perturb_rate=0.2):
+#     #     """Apply perturbations to the image (PIL format) based on the perturb_rate."""
+#     #     image = np.array(image)  # Convert PIL image to numpy array for pixel manipulation
+#     #     height, width, channels = image.shape  # Extract height, width, and number of channels
         
-    #     # Total number of pixels
-    #     num_pixels = height * width
+#     #     # Total number of pixels
+#     #     num_pixels = height * width
         
-    #     # Create a mask with perturb_rate chance for each pixel to be perturbed
-    #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+#     #     # Create a mask with perturb_rate chance for each pixel to be perturbed
+#     #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
 
-    #     # Apply mask to perturb pixel values
-    #     for idx, should_perturb in enumerate(mask):
-    #         if should_perturb:
-    #             row = idx // width  # Calculate row index based on the width of the image
-    #             col = idx % width   # Calculate column index based on the width of the image
+#     #     # Apply mask to perturb pixel values
+#     #     for idx, should_perturb in enumerate(mask):
+#     #         if should_perturb:
+#     #             row = idx // width  # Calculate row index based on the width of the image
+#     #             col = idx % width   # Calculate column index based on the width of the image
                 
-    #             # Replace with random pixel values for each RGB channel
-    #             image[row, col] = np.random.randint(0, 256, size=channels)
+#     #             # Replace with random pixel values for each RGB channel
+#     #             image[row, col] = np.random.randint(0, 256, size=channels)
         
-    #     return Image.fromarray(image.astype(np.uint8))  # Convert back to PIL image
+#     #     return Image.fromarray(image.astype(np.uint8))  # Convert back to PIL image
 
-    @staticmethod
-    def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
-        if transform is None:
-            transform = GTSRBWrapper.create_transform(augment)
-            # Create base transform with augmentations and default preprocessing
-            # base_transform = GTSRBWrapper.create_transform(augment)
-            # transform = transforms.Compose([
-            #     base_transform,
-            #     transforms.Lambda(lambda img: GTSRBWrapper.apply_perturbation(img, perturb_rate=GTSRBWrapper.perturb_rate)),
-            # ])
-            # transform = transforms.Compose(
-            #     GTSRBWrapper.get_augmentations() +
-            #     [*GTSRBWrapper.add_perturbation, *GTSRBWrapper.default_preprocessing()]
-            # )
-        augmented_test_dir = path.join(dataroot, "GTSRB", "ppm_generated_samples")
+#     @staticmethod
+#     def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = GTSRBWrapper.create_transform(augment)
+#             # Create base transform with augmentations and default preprocessing
+#             # base_transform = GTSRBWrapper.create_transform(augment)
+#             # transform = transforms.Compose([
+#             #     base_transform,
+#             #     transforms.Lambda(lambda img: GTSRBWrapper.apply_perturbation(img, perturb_rate=GTSRBWrapper.perturb_rate)),
+#             # ])
+#             # transform = transforms.Compose(
+#             #     GTSRBWrapper.get_augmentations() +
+#             #     [*GTSRBWrapper.add_perturbation, *GTSRBWrapper.default_preprocessing()]
+#             # )
+#         augmented_test_dir = path.join(dataroot, "GTSRB", "ppm_generated_samples")
 
-        # Use DatasetFolder to load the augmented dataset
-        return GTSRBDatasetFolder(
-            root=augmented_test_dir,
-            loader=ppm_loader,          # Custom loader for .ppm images
-            extensions=("ppm",),        # Specify file extensions to include
-            transform=transform,        # Apply preprocessing transformations
-        ) 
-    # @staticmethod
-    # def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
-    #     if transform is None:
-    #         transform = GTSRBWrapper.create_transform(augment)
+#         # Use DatasetFolder to load the augmented dataset
+#         return GTSRBDatasetFolder(
+#             root=augmented_test_dir,
+#             loader=ppm_loader,          # Custom loader for .ppm images
+#             extensions=("ppm",),        # Specify file extensions to include
+#             transform=transform,        # Apply preprocessing transformations
+#         ) 
+#     # @staticmethod
+#     # def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
+#     #     if transform is None:
+#     #         transform = GTSRBWrapper.create_transform(augment)
 
-    #     return datasets.GTSRB(
-    #         GTSRBWrapper.root(dataroot),
-    #         split="train",
-    #         transform=transform,
-    #         download=download,
-    #     )
-    @staticmethod
-    def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
-        if transform is None:
-            transform = GTSRBWrapper.create_transform(augment=False)
+#     #     return datasets.GTSRB(
+#     #         GTSRBWrapper.root(dataroot),
+#     #         split="train",
+#     #         transform=transform,
+#     #         download=download,
+#     #     )
+#     @staticmethod
+#     def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+#         if transform is None:
+#             transform = GTSRBWrapper.create_transform(augment=False)
 
-        return datasets.GTSRB(
-            GTSRBWrapper.root(dataroot),
-            split="train",
-            transform=transform,
-            download=download,
-        )
+#         return datasets.GTSRB(
+#             GTSRBWrapper.root(dataroot),
+#             split="train",
+#             transform=transform,
+#             download=download,
+#         )
     # @staticmethod
     # def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
     #     if transform is None:
@@ -796,115 +796,95 @@ class GTSRBWrapper(DatasetWrapper):
 
 
 
-# class GTSRBWrapper(DatasetWrapper):
-#     """For the German Traffic Sign Recognition Benchmark (Houben et al. 2013)"""
-#     name = "gtsrb"
-#     image_shape = (32, 32, 3)
-#     num_classes = 40
-#     pixel_range = (-0.5, 0.5)
-#     perturb_rate = 0.1
+class GTSRBWrapper(DatasetWrapper):
+    """For the German Traffic Sign Recognition Benchmark (Houben et al. 2013)"""
+    name = "gtsrb"
+    image_shape = (32, 32, 3)
+    num_classes = 40
+    pixel_range = (-0.5, 0.5)
+    perturb_rate = 0.1
 
-#     @staticmethod
-#     def root(dataroot):
-#         """Returns the root directory for GTSRB"""
-#         return path.join(dataroot, "GTSRB")
+    @staticmethod
+    def root(dataroot):
+        """Returns the root directory for GTSRB"""
+        return path.join(dataroot, "GTSRB")
 
-#     @staticmethod
-#     def get_augmentations() -> list:
-#         """GTSRB-specific augmentations."""
-#         return [
-#             transforms.RandomAffine(0, translate=(0.1, 0.1)),
-#             transforms.RandomHorizontalFlip(),
-#             # apply_perturbation,
-#         ]
-#     #Ensures spatial augmentations are applied before resizing.TODO: Check if this is the correct order. the first return
-#     # Converts to a tensor before adding perturbations, so add_perturbation can work with tensor data.
-#     # Applies preprocess last to prepare the data for the model.
+    @staticmethod
+    def get_augmentations() -> list:
+        """GTSRB-specific augmentations."""
+        return [
+            transforms.RandomAffine(0, translate=(0.1, 0.1)),
+            transforms.RandomHorizontalFlip(),
+            # apply_perturbation,
+        ]
+    #Ensures spatial augmentations are applied before resizing.TODO: Check if this is the correct order. the first return
+    # Converts to a tensor before adding perturbations, so add_perturbation can work with tensor data.
+    # Applies preprocess last to prepare the data for the model.
 
-#     @staticmethod
-#     def default_preprocessing() -> list:
-#         # return [transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), transforms.ToTensor(), GTSRBWrapper.apply_perturbation, preprocess]
-#         # return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), GTSRBWrapper.apply_perturbation, preprocess]
-#         return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), preprocess]
+    @staticmethod
+    def default_preprocessing() -> list:
+        # return [transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), transforms.ToTensor(), GTSRBWrapper.apply_perturbation, preprocess]
+        # return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), GTSRBWrapper.apply_perturbation, preprocess]
+        return [transforms.ToTensor(), transforms.Resize((GTSRBWrapper.image_shape[0], GTSRBWrapper.image_shape[1])), preprocess]
 
-#     # @staticmethod
-#     # def apply_perturbation(image, perturb_rate=0.1):
-#     #     """Apply perturbations to the image based on the perturb_rate."""
-#     #     num_pixels = image.numel()  # Total number of pixels (channels x height x width)
-#     #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+    # @staticmethod
+    # def apply_perturbation(image, perturb_rate=0.1):
+    #     """Apply perturbations to the image based on the perturb_rate."""
+    #     num_pixels = image.numel()  # Total number of pixels (channels x height x width)
+    #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
         
-#     #     # Flatten the image, apply perturbation mask, then reshape back
-#     #     image_flat = image.view(-1)  # Flatten to apply mask
-#     #     perturb_values = torch.randint(0, 256, image_flat.shape, dtype=torch.float32) / 255.0
-#     #     image_flat[mask] = perturb_values[mask]  # Apply perturbation
-#     #     image = image_flat.view(image.shape)  # Reshape to original image shape
-#     #     return image
-#     # @staticmethod
-#     # def apply_perturbation(image, perturb_rate=0.2):
-#     #     """Apply perturbations to the image (PIL format) based on the perturb_rate."""
-#     #     image = np.array(image)  # Convert PIL image to numpy array for pixel manipulation
-#     #     height, width, channels = image.shape  # Extract height, width, and number of channels
+    #     # Flatten the image, apply perturbation mask, then reshape back
+    #     image_flat = image.view(-1)  # Flatten to apply mask
+    #     perturb_values = torch.randint(0, 256, image_flat.shape, dtype=torch.float32) / 255.0
+    #     image_flat[mask] = perturb_values[mask]  # Apply perturbation
+    #     image = image_flat.view(image.shape)  # Reshape to original image shape
+    #     return image
+    # @staticmethod
+    # def apply_perturbation(image, perturb_rate=0.2):
+    #     """Apply perturbations to the image (PIL format) based on the perturb_rate."""
+    #     image = np.array(image)  # Convert PIL image to numpy array for pixel manipulation
+    #     height, width, channels = image.shape  # Extract height, width, and number of channels
         
-#     #     # Total number of pixels
-#     #     num_pixels = height * width
+    #     # Total number of pixels
+    #     num_pixels = height * width
         
-#     #     # Create a mask with perturb_rate chance for each pixel to be perturbed
-#     #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
+    #     # Create a mask with perturb_rate chance for each pixel to be perturbed
+    #     mask = torch.bernoulli(torch.full((num_pixels,), perturb_rate)).bool()
 
-#     #     # Apply mask to perturb pixel values
-#     #     for idx, should_perturb in enumerate(mask):
-#     #         if should_perturb:
-#     #             row = idx // width  # Calculate row index based on the width of the image
-#     #             col = idx % width   # Calculate column index based on the width of the image
+    #     # Apply mask to perturb pixel values
+    #     for idx, should_perturb in enumerate(mask):
+    #         if should_perturb:
+    #             row = idx // width  # Calculate row index based on the width of the image
+    #             col = idx % width   # Calculate column index based on the width of the image
                 
-#     #             # Replace with random pixel values for each RGB channel
-#     #             image[row, col] = np.random.randint(0, 256, size=channels)
+    #             # Replace with random pixel values for each RGB channel
+    #             image[row, col] = np.random.randint(0, 256, size=channels)
         
-#     #     return Image.fromarray(image.astype(np.uint8))  # Convert back to PIL image
+    #     return Image.fromarray(image.astype(np.uint8))  # Convert back to PIL image
+ 
+    @staticmethod
+    def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
+        if transform is None:
+            transform = GTSRBWrapper.create_transform(augment)
 
-#     @staticmethod
-#     def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
-#         if transform is None:
-#             transform = GTSRBWrapper.create_transform(augment)
-#             # Create base transform with augmentations and default preprocessing
-#             # base_transform = GTSRBWrapper.create_transform(augment)
-#             # transform = transforms.Compose([
-#             #     base_transform,
-#             #     transforms.Lambda(lambda img: GTSRBWrapper.apply_perturbation(img, perturb_rate=GTSRBWrapper.perturb_rate)),
-#             # ])
-#             # transform = transforms.Compose(
-#             #     GTSRBWrapper.get_augmentations() +
-#             #     [*GTSRBWrapper.add_perturbation, *GTSRBWrapper.default_preprocessing()]
-#             # )
-#         return datasets.GTSRB(
-#         GTSRBWrapper.root(dataroot),
-#         split="train",
-#         transform=transform,
-#         download=download,
-#         )  
-#     # @staticmethod
-#     # def get_train(dataroot: str=DATAROOT, transform=None, augment=True, download: bool=True) -> Dataset:
-#     #     if transform is None:
-#     #         transform = GTSRBWrapper.create_transform(augment)
+        return datasets.GTSRB(
+            GTSRBWrapper.root(dataroot),
+            split="train",
+            transform=transform,
+            download=download,
+        )
 
-#     #     return datasets.GTSRB(
-#     #         GTSRBWrapper.root(dataroot),
-#     #         split="train",
-#     #         transform=transform,
-#     #         download=download,
-#     #     )
+    @staticmethod
+    def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+        if transform is None:
+            transform = GTSRBWrapper.create_transform(augment=False)
 
-#     @staticmethod
-#     def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
-#         if transform is None:
-#             transform = GTSRBWrapper.create_transform(augment=False)
-
-#         return datasets.GTSRB(
-#             GTSRBWrapper.root(dataroot),
-#             split="test",
-#             transform=transform,
-#             download=download,
-#         )
+        return datasets.GTSRB(
+            GTSRBWrapper.root(dataroot),
+            split="test",
+            transform=transform,
+            download=download,
+        )
 class OmniglotWrapper(DatasetWrapper):
     """ Omniglot dataset wrapper """
     name = "omniglot"

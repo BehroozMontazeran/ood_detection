@@ -124,8 +124,8 @@ def plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, o
     """Plot histograms for fit and test scores"""
     # Calculate optimal bins
     test_scores_list = [scores for scores in test_scores_dict.values()]
-    bins = best_bin_size(fit_scores, test_scores_list)
-    
+    # bins = best_bin_size(fit_scores, test_scores_list)
+    bins = 25
     plt.figure(figsize=(10, 6))
     
     # Define a more distinctive list of colors for the datasets
@@ -134,16 +134,19 @@ def plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, o
     
     # Plot histogram for each test dataset with distinct colors
     for test_name, scores in test_scores_dict.items():
-        plt.hist(scores, bins=bins, alpha=0.5, label=f'Test Samples ({test_name})', color=next(color_cycle), edgecolor='black')
+        scores = np.concatenate(scores) # Concatenate scores of three blocks
+        plt.hist(scores, bins=bins, alpha=0.5, label=f'Test Samples ({test_name})', color=next(color_cycle))#, edgecolor='black')
 
     # Plot histogram for fit samples
-    plt.hist(fit_scores, bins=bins, alpha=0.7, label=f'Fit Samples ({fit_dataset_name})', color='#FF0000', edgecolor='black') # Red
+    fit_scores = np.concatenate(fit_scores) # Concatenate scores of three blocks
+    plt.hist(fit_scores, bins=bins, alpha=0.7, label=f'Fit Samples ({fit_dataset_name})', color='#FF0000')#, edgecolor='black') # Red
     
     # Add labels and title
     plt.xlabel('OOD Scores')
     plt.ylabel('Frequency')
-    plt.title(f'Histogram of OOD Scores for Test and Fit Samples (Checkpoint {checkpoint})')
+    plt.title(f'Histogram of OOD Scores Trained on {fit_dataset_name.upper()}')# for Test and Fit Samples (Checkpoint {checkpoint})')
     plt.legend(title=f'Bins: {bins}')
+    plt.legend()
     plt.grid(True)
 
     # Save the plot
@@ -151,7 +154,7 @@ def plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, o
     plt.savefig(path.join(output_dir, plot_filename))
     
     # Show the plot
-    plt.show()
+    # plt.show()
 
 
 
@@ -200,7 +203,7 @@ def process_and_plot(file_path):
         # Plot layer-wise normalized parameter values with smoothed curves, using averaging window
         # plot_layerwise_norm(features_dict, num_gradients_in_layers, checkpoint, output_plot_dir)
         # Plot histograms
-        # plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, output_plot_dir)
+        plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, output_plot_dir)
 
         # # Plot AUROC
         auroc_df = plot_auroc_subplot(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, output_plot_dir) # AUROC using scores
@@ -763,14 +766,21 @@ def main():
         default=True,
         help="Whether to plot the AUROC."
     )
+    parser.add_argument(
+        "--path",
+        type=str,
+        default=OUTPUT_DIR,
+        help="Path to the data"
+    )
 
     args = parser.parse_args()
 
     fit_dataset_name = args.fit_dataset
     model_type = args.model_type
     ood_batch_size = args.ood_batch_size
+    path_d = args.path
 
-    data_path = path.join(OUTPUT_DIR, f"{model_type}_{fit_dataset_name}")
+    data_path = path.join(path_d, f"{model_type}_{fit_dataset_name}")
     d_path = path.join(data_path, ood_batch_size)
     process_and_plot(d_path)
 # Run the script independently

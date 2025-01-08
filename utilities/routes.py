@@ -9,6 +9,7 @@ PROJECT_ROOT = pathlib.Path(__file__).parent.parent.resolve()
 OUTPUT_DIR = path.join(PROJECT_ROOT, "output")
 DATAROOT = path.join(PROJECT_ROOT, "data")
 MODELS_DIR = path.join(PROJECT_ROOT, "models")
+OUTPUT_IMG = path.join(PROJECT_ROOT, "images")
 
 VAE_ROOT = path.join(MODELS_DIR, "VAE_model")
 GLOW_ROOT = path.join(MODELS_DIR, "glow_model")

@@ -33,7 +33,12 @@ class OODScores(FeatureExtractor):
             epsilon = 1e-10
             nll = 0.5 * torch.sum(((layer_features - mu) ** 2) / (sigma2+epsilon) + torch.log(2 * torch.pi * (sigma2+epsilon)), dim=0)
             ood_scores.append(nll)
-        
+
+            # # Compute the z=score for the layer
+            # epsilon = 1e-10
+            # z = torch.sum((layer_features - mu) / (torch.sqrt(sigma2)+epsilon), dim=0)
+            # ood_scores.append(z)
+
         # return torch.sum(torch.stack(ood_scores))
 
         # TODO: Sum up only scores of those layers that are among max (some % of layers) layers

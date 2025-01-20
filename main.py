@@ -34,15 +34,21 @@ def main():
         help="Dataset to use for fitting."
     )
     parser.add_argument(
+        "--num_channels",
+        type=int,
+        default=3,
+        help="Number of channels in the input images."
+    )
+    parser.add_argument(
         "--ood_batch_size",
-        type=str,
-        default="1",
+        type=int,
+        default=1,
         help="Batch size for OOD score computation."
     )
     parser.add_argument(
         "--ood_num_samples",
-        type=str,
-        default="1000",
+        type=int,
+        default=1000,
         help="Number of samples for OOD score computation."
     )
     parser.add_argument(
@@ -76,7 +82,7 @@ def main():
             # fit_dataset_names.remove(fit_dataset_name)
             data_path = path.join(OUTPUT_DIR, f"{args.model_type}_{fit_dataset_name}")
             checkpoints = [f for f in listdir(data_path) if f.endswith('.pt')]
-            for ood_batch_size in ["1", "5"]:
+            for ood_batch_size in [1, 5]:
                 calculate_results(args, fit_dataset_name=fit_dataset_name, data_path=data_path, ood_batch_size=ood_batch_size, checkpoints=checkpoints)
     else:
         calculate_results(args)
@@ -100,7 +106,7 @@ def calculate_results(args, fit_dataset_name=None, data_path=None, ood_batch_siz
     if not checkpoints:
         raise FileNotFoundError(f"No checkpoints found in {data_path}")
     
-    for checkpoint in [checkpoints[0], checkpoints[-1]]:
+    for checkpoint in [checkpoints[49], checkpoints[59], checkpoints[69], checkpoints[79], checkpoints[89], checkpoints[99]]:
         print(f"Using checkpoint: {checkpoint}...\n")
         # Load the model with the fitting dataset
         model, _, fit_test = load_models.glow(checkpoint=checkpoint, fit_dataset_name=fit_dataset_name)

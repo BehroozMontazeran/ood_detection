@@ -6,6 +6,7 @@ from os import path
 import torch
 
 from models.glow_model.model import Glow
+from models.glow_model_one_channel.utils.glow import Glow as Glow_one_channel
 from models.glow_model.train import get_ds_params
 from utilities.routes import PathCreator
 
@@ -19,15 +20,20 @@ class LoadModels:
     def glow(self, checkpoint="glow_checkpoint_195250.pt", fit_dataset_name = 'cifar10'):
         """ Load the glow model from disk based on fit and test dataset names. """
 
+        device= 'cuda' if torch.cuda.is_available() else 'cpu'
         image_shape, num_classes, train_ds, test_ds, hparams, output_dir = self.load_fit_dataset("glow", fit_dataset_name)
 
-        model = Glow(image_shape, hparams['hidden_channels'], hparams['K'], hparams['L'], hparams['actnorm_scale'],
-                    hparams['flow_permutation'], hparams['flow_coupling'], hparams['LU_decomposed'], num_classes,
-                    hparams['learn_top'], hparams['y_condition'])
+        if image_shape[2] == 3:
+            model = Glow(image_shape, hparams['hidden_channels'], hparams['K'], hparams['L'], hparams['actnorm_scale'],
+                        hparams['flow_permutation'], hparams['flow_coupling'], hparams['LU_decomposed'], num_classes,
+                        hparams['learn_top'], hparams['y_condition'])
+            chekpoint_dir = path.join(output_dir, checkpoint)
+            model.load_state_dict(torch.load(chekpoint_dir)['model']) # Load only model part
+            model.set_actnorm_init()
+        model = Glow_one_channel(image_shape[::-1], hparams['hidden_channels'], hparams['num_flow_steps'], hparams['ACL_layers'], hparams['num_levels'], hparams['num_splits'], device, hparams['chunk_size'])
         chekpoint_dir = path.join(output_dir, checkpoint)
-        model.load_state_dict(torch.load(chekpoint_dir)['model']) # Load only model part
-        model.set_actnorm_init()
-
+        model.load_state_dict(torch.load(chekpoint_dir))
+        model.eval()
         return  model, train_ds, test_ds
 
     def load_fit_dataset(self, model_type,  dataset_name):

@@ -39,15 +39,15 @@ class OODScores(FeatureExtractor):
             # z = torch.sum((layer_features - mu) / (torch.sqrt(sigma2)+epsilon), dim=0)
             # ood_scores.append(z)
 
-        # return torch.sum(torch.stack(ood_scores))
+        return torch.sum(torch.stack(ood_scores))
 
-        # TODO: Sum up only scores of those layers that are among max (some % of layers) layers
-        # Sum OOD scores for parts
-        part1_scores = torch.sum(torch.stack(ood_scores[:385]))
-        part2_scores = torch.sum(torch.stack(ood_scores[385:769]))
-        part3_scores = torch.sum(torch.stack(ood_scores[769:])) # :1353
+        # # TODO: Sum up only scores of those layers that are among max (some % of layers) layers
+        # # Sum OOD scores for parts
+        # part1_scores = torch.sum(torch.stack(ood_scores[:385]))
+        # part2_scores = torch.sum(torch.stack(ood_scores[385:769]))
+        # part3_scores = torch.sum(torch.stack(ood_scores[769:])) # :1353
 
-        return torch.stack([part1_scores, part2_scores, part3_scores])
+        # return torch.stack([part1_scores, part2_scores, part3_scores])
 
     def ood_score(self, new_samples, means, variances):
         """ Compute the OOD score for the new samples using the Gaussian negative log-likelihood method """

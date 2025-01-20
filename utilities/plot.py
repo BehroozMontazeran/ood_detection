@@ -65,47 +65,12 @@ def group_files_by_checkpoint(file_path):
                 grouped_files[checkpoint]['tests'].append(filename)
     
     # Filter out incomplete groups (i.e., those without both fit and tests)
-    return {k: v for k, v in grouped_files.items() if v['fit'] and len(v['tests']) == 4}
+    return {k: v for k, v in grouped_files.items() if v['fit'] and len(v['tests']) == 4 or 2}
 
-
-# Function to read OOD scores from a file
-def read_properties(file_path: str):
-    """Read OOD scores from a file and concatenate them for each block."""
-    if path.exists(file_path):
-        print(f"File '{file_path}' is loading...")
-        checkpoint = torch.load(file_path)
-        ood_scores = checkpoint['ood_scores']
-        features = checkpoint['features']
-        num_features = checkpoint['num_features']
-        features_scalar = checkpoint['features_scalar']
-
-        # Initialize lists to store concatenated OOD scores for each block
-        block1_oods = []
-        block2_oods = []
-        block3_oods = []
-
-        # Process each layer's OOD score and split them by block
-        for score in ood_scores:
-            # Assuming 'score' is a tensor of shape [3] with OOD scores for each block
-            block1_oods.append(score[0].unsqueeze(0))  # OOD score for block 1
-            block2_oods.append(score[1].unsqueeze(0))  # OOD score for block 2
-            block3_oods.append(score[2].unsqueeze(0))  # OOD score for block 3
-
-        # Concatenate OOD scores for each block
-        block1_oods = torch.cat(block1_oods, dim=0).cpu().detach().numpy()
-        block2_oods = torch.cat(block2_oods, dim=0).cpu().detach().numpy()
-        block3_oods = torch.cat(block3_oods, dim=0).cpu().detach().numpy()
-        all_blocks = [block1_oods, block2_oods, block3_oods]
-        # Return the concatenated OOD scores for each block
-        return all_blocks, features, num_features, features_scalar
-
-    print(f"File '{file_path}' not found.")
-    return None
 
 # # Function to read OOD scores from a file
 # def read_properties(file_path: str):
-#     """Read OOD scores from a file"""
-#     # file_path = path.join(data_path, file_name)
+#     """Read OOD scores from a file and concatenate them for each block."""
 #     if path.exists(file_path):
 #         print(f"File '{file_path}' is loading...")
 #         checkpoint = torch.load(file_path)
@@ -113,10 +78,47 @@ def read_properties(file_path: str):
 #         features = checkpoint['features']
 #         num_features = checkpoint['num_features']
 #         features_scalar = checkpoint['features_scalar']
-#         ood_score = torch.cat([score.unsqueeze(0) for score in ood_scores], dim=0).cpu().detach().numpy()
-#         return ood_score, features, num_features, features_scalar
+
+#         # Initialize lists to store concatenated OOD scores for each block
+#         block1_oods = []
+#         block2_oods = []
+#         block3_oods = []
+
+#         # Process each layer's OOD score and split them by block
+#         for score in ood_scores:
+#             # Assuming 'score' is a tensor of shape [3] with OOD scores for each block
+#             block1_oods.append(score[0].unsqueeze(0))  # OOD score for block 1
+#             block2_oods.append(score[1].unsqueeze(0))  # OOD score for block 2
+#             block3_oods.append(score[2].unsqueeze(0))  # OOD score for block 3
+
+#         # Concatenate OOD scores for each block
+#         block1_oods = torch.cat(block1_oods, dim=0).cpu().detach().numpy()
+#         block2_oods = torch.cat(block2_oods, dim=0).cpu().detach().numpy()
+#         block3_oods = torch.cat(block3_oods, dim=0).cpu().detach().numpy()
+#         all_blocks = [block1_oods, block2_oods, block3_oods]
+#         # Return the concatenated OOD scores for each block
+#         return all_blocks, features, num_features, features_scalar
+
 #     print(f"File '{file_path}' not found.")
 #     return None
+
+# Function to read OOD scores from a file
+def read_properties(file_path: str):
+    """Read OOD scores from a file"""
+    # file_path = path.join(data_path, file_name)
+    if path.exists(file_path):
+        print(f"File '{file_path}' is loading...")
+        checkpoint = torch.load(file_path)
+        # ood_scores = checkpoint
+        ood_scores = checkpoint['ood_scores']
+        features = checkpoint['features']
+        num_features = checkpoint['num_features']
+        features_scalar = checkpoint['features_scalar']
+        ood_score = torch.cat([score.unsqueeze(0) for score in ood_scores], dim=0).cpu().detach().numpy()
+        return ood_score, features, num_features, features_scalar
+        # return ood_score, None, None, None
+    print(f"File '{file_path}' not found.")
+    return None
 
 
 # Function to plot histograms for fit and test scores
@@ -125,7 +127,7 @@ def plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, o
     # Calculate optimal bins
     test_scores_list = [scores for scores in test_scores_dict.values()]
     # bins = best_bin_size(fit_scores, test_scores_list)
-    bins = 25
+    bins = 40
     plt.figure(figsize=(10, 6))
     
     # Define a more distinctive list of colors for the datasets
@@ -134,19 +136,26 @@ def plot_histogram(fit_scores, test_scores_dict, fit_dataset_name, checkpoint, o
     
     # Plot histogram for each test dataset with distinct colors
     for test_name, scores in test_scores_dict.items():
-        scores = np.concatenate(scores) # Concatenate scores of three blocks
+        # scores = np.concatenate(scores) # Concatenate scores of three blocks
         plt.hist(scores, bins=bins, alpha=0.5, label=f'Test Samples ({test_name})', color=next(color_cycle))#, edgecolor='black')
 
     # Plot histogram for fit samples
-    fit_scores = np.concatenate(fit_scores) # Concatenate scores of three blocks
+    # fit_scores = np.concatenate(fit_scores) # Concatenate scores of three blocks
     plt.hist(fit_scores, bins=bins, alpha=0.7, label=f'Fit Samples ({fit_dataset_name})', color='#FF0000')#, edgecolor='black') # Red
     
     # Add labels and title
-    plt.xlabel('OOD Scores')
-    plt.ylabel('Frequency')
-    plt.title(f'Histogram of OOD Scores Trained on {fit_dataset_name.upper()}')# for Test and Fit Samples (Checkpoint {checkpoint})')
-    plt.legend(title=f'Bins: {bins}')
-    plt.legend()
+    # plt.xlabel('OOD Scores',fontsize=20)
+    # plt.xticks(ticks=plt.xticks()[0], labels=[f'{int(x/1000)}k' for x in plt.xticks()[0]], fontsize=15)
+    xticks = plt.xticks()[0]
+    if len(set([int(x/1000) for x in xticks])) == len(xticks):
+        plt.xticks(ticks=xticks, labels=[f'{int(x/1000)}k' for x in xticks], fontsize=15)
+    else:
+        plt.xticks(ticks=xticks, fontsize=15)
+    # plt.ylabel('Frequency', fontsize=20)
+    plt.yticks( fontsize=15)
+    plt.title(f'Histogram of OOD Scores Trained on {fit_dataset_name.upper()}',fontsize=25)# for Test and Fit Samples (Checkpoint {checkpoint})')
+    # plt.legend(title=f'Bins: {bins}')
+    plt.legend(fontsize=15)
     plt.grid(True)
 
     # Save the plot
@@ -288,15 +297,15 @@ def plot_auroc_subplot(fit_scores, test_scores_dict, fit_dataset_name, checkpoin
         # Ensure axs is iterable even when there's only one subplot
         if num_tests == 1:
             axs = [axs]
-        fit_scores_selected = np.concatenate(fit_scores)
-        # fit_scores_selected = fit_scores[2]
+        # fit_scores_selected = np.concatenate(fit_scores)
+        fit_scores_selected = fit_scores
         # Filter fit scores based on the current percentile
         fit_threshold = np.percentile(fit_scores_selected, percentile)
         fit_filtered_features = [f for f in fit_scores_selected if f > fit_threshold]
 
         for ax, (test_name, test_scores) in zip(axs, test_scores_dict.items()):
-            test_scores_selected = np.concatenate(test_scores)
-            # test_scores_selected = test_scores[2]
+            # test_scores_selected = np.concatenate(test_scores)
+            test_scores_selected = test_scores
             # Filter test scores based on the current percentile
             test_threshold = np.percentile(test_scores_selected, percentile)
             test_filtered_features = [f for f in test_scores_selected if f > test_threshold]

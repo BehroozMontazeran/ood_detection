@@ -17,3 +17,5 @@ images
 # Exclude files from being ignored
 !data/datasets.py
 !data/__init__.py
+glow_model_one_channel
+image

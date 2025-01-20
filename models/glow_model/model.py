@@ -13,7 +13,7 @@ from models.glow_model.modules import (ActNorm2d, Conv2d, Conv2dZeros,
                                        Permute2d, Split2d, SqueezeLayer,
                                        gaussian_likelihood, gaussian_sample)
 from models.glow_model.utils import split_feature, uniform_binning_correction
-from ood_scores.ood_extractors import GenerativeModel
+# from ood_scores.ood_extractors import GenerativeModel
 from utilities.routes import GLOW_ROOT
 from utilities.utils import get_image_shape
 
@@ -207,7 +207,7 @@ class FlowNet(nn.Module):
         return z
 
 
-class Glow(nn.Module, GenerativeModel):
+class Glow(nn.Module):#, GenerativeModel):
     """ Glow Model """
     def __init__(
         self,

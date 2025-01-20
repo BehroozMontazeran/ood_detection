@@ -79,16 +79,3 @@ class OODScoresExtractor(OODScores):
             ood_scores, features, num_features, features_scalar = self.ood_score(samples, means, variances)
             ood_scores_test_samples.append(ood_scores)
         return ood_scores_test_samples, features, num_features, features_scalar
-
-class GenerativeModel:
-    """Provides a standard interface for anomaly_methods code to interact with all types of models."""
-
-    def eval_nll(self, x):
-        raise NotImplementedError()
-
-    def generate_sample(self, batch_size):
-        raise NotImplementedError()
-
-    @staticmethod
-    def load_serialised(model_name):
-        raise NotImplementedError()

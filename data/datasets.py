@@ -203,6 +203,57 @@ class FashionMNISTWrapper(DatasetWrapper):
             dataroot, train=False, download=download, transform=transform
         )
 
+class OmniglotWrapper(DatasetWrapper):
+    """ Omniglot dataset wrapper """
+    name = "omniglot"
+    image_shape = (28, 28, 1)
+    num_classes = 10
+
+    @staticmethod
+    def default_preprocessing() -> list:
+        return [transforms.ToTensor(), transforms.Resize((OmniglotWrapper.image_shape[0], OmniglotWrapper.image_shape[1]))]
+
+    @staticmethod
+    def get_train(dataroot: str=DATAROOT, transform=None, augment: bool=False, download: bool=True) -> Dataset:
+        if transform is None:
+            transform = OmniglotWrapper.create_transform(augment)
+        return datasets.Omniglot(
+            dataroot, background=True, download=download, transform=transform
+        )
+
+    @staticmethod
+    def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+        if transform is None:
+            transform = OmniglotWrapper.create_transform(augment=False)
+        return datasets.Omniglot(
+            dataroot, background=False, download=download, transform=transform
+        )
+
+class FlippedOmniglotWrapper(OmniglotWrapper):
+    """ Flipped Omniglot dataset wrapper """
+    name = "flipped_omniglot"
+
+    @staticmethod
+    def default_preprocessing() -> list:
+        return [transforms.ToTensor(), transforms.Lambda(lambda x: 1 - x), transforms.Resize((OmniglotWrapper.image_shape[0], OmniglotWrapper.image_shape[1]))]
+
+    @staticmethod
+    def get_train(dataroot: str=DATAROOT, transform=None, augment: bool= False, download: bool=True) -> Dataset:
+        if transform is None:
+            transform = FlippedOmniglotWrapper.create_transform(augment)
+        return datasets.Omniglot(
+            dataroot, background=True, download=download, transform=transform
+        )
+
+    @staticmethod
+    def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
+        if transform is None:
+            transform = FlippedOmniglotWrapper.create_transform(augment=False)
+        return datasets.Omniglot(
+            dataroot, background=False, download=download, transform=transform
+        )
+    
+    
 class CIFAR10DatasetFolder(DatasetFolder):
     """Custom DatasetFolder for CIFAR10 with a specific name."""
     def __init__(self, *args, **kwargs):
@@ -483,9 +534,6 @@ class CIFAR10Wrapper(DatasetWrapper):
             transform=transform,
             target_transform=one_hot_encode,
             download=download,)
-
-
-
 
 
 
@@ -885,55 +933,7 @@ class GTSRBWrapper(DatasetWrapper):
             transform=transform,
             download=download,
         )
-class OmniglotWrapper(DatasetWrapper):
-    """ Omniglot dataset wrapper """
-    name = "omniglot"
-    image_shape = (28, 28, 1)
-    num_classes = 10
 
-    @staticmethod
-    def default_preprocessing() -> list:
-        return [transforms.ToTensor(), transforms.Resize((OmniglotWrapper.image_shape[0], OmniglotWrapper.image_shape[1]))]
-
-    @staticmethod
-    def get_train(dataroot: str=DATAROOT, transform=None, augment: bool=False, download: bool=True) -> Dataset:
-        if transform is None:
-            transform = OmniglotWrapper.create_transform(augment)
-        return datasets.Omniglot(
-            dataroot, background=True, download=download, transform=transform
-        )
-
-    @staticmethod
-    def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
-        if transform is None:
-            transform = OmniglotWrapper.create_transform(augment=False)
-        return datasets.Omniglot(
-            dataroot, background=False, download=download, transform=transform
-        )
-
-class FlippedOmniglotWrapper(OmniglotWrapper):
-    """ Flipped Omniglot dataset wrapper """
-    name = "flipped_omniglot"
-
-    @staticmethod
-    def default_preprocessing() -> list:
-        return [transforms.ToTensor(), transforms.Lambda(lambda x: 1 - x), transforms.Resize((OmniglotWrapper.image_shape[0], OmniglotWrapper.image_shape[1]))]
-
-    @staticmethod
-    def get_train(dataroot: str=DATAROOT, transform=None, augment: bool= False, download: bool=True) -> Dataset:
-        if transform is None:
-            transform = FlippedOmniglotWrapper.create_transform(augment)
-        return datasets.Omniglot(
-            dataroot, background=True, download=download, transform=transform
-        )
-
-    @staticmethod
-    def get_test(dataroot: str=DATAROOT, transform=None, download: bool=True) -> Dataset:
-        if transform is None:
-            transform = FlippedOmniglotWrapper.create_transform(augment=False)
-        return datasets.Omniglot(
-            dataroot, background=False, download=download, transform=transform
-        )
 
 class ImageNet32Wrapper(DatasetWrapper):
     """ImageNet32 dataset wrapper."""

@@ -19,14 +19,14 @@ to_dataset_wrapper = {
     DS_Wrapper.name: DS_Wrapper for DS_Wrapper in
     [
         # MixedWrapper,
-        # ImageNet32Wrapper,
-        # SVHNWrapper,
-        # CelebAWrapper,
-        # CIFAR10Wrapper,
-        # GTSRBWrapper,
-        MNISTWrapper,
-        FashionMNISTWrapper,
-        OmniglotWrapper,
+        ImageNet32Wrapper,
+        SVHNWrapper,
+        CelebAWrapper,
+        CIFAR10Wrapper,
+        GTSRBWrapper,
+        # MNISTWrapper,
+        # FashionMNISTWrapper,
+        # OmniglotWrapper,
         # FlippedOmniglotWrapper
     ]
 }

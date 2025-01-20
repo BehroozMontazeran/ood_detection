@@ -211,7 +211,7 @@ def train_glow(
 
     trainer = Engine(step)
     checkpoint_handler = ModelCheckpoint(
-        output_dir, "glow", n_saved=2, require_empty=False
+        output_dir, "glow", n_saved=250, require_empty=False
     )
 
     trainer.add_event_handler(
@@ -471,25 +471,39 @@ if __name__ == "__main__":
 
     parser.add_argument("--seed", type=int, default=0, help="manual seed")
 
+    parser.add_argument(
+        "--loop_over_all",
+        type=bool,
+        default=False,
+        help="Whether to loop over all datasets[cifar10, celeba, imagenet32, gstrb, svhn] and train them."
+    )
     args = parser.parse_args()
 
-    try:
-        os.makedirs(args.output_dir)
-    except FileExistsError:
-        if args.fresh:
-            shutil.rmtree(args.output_dir)
-            os.makedirs(args.output_dir)
-        if (not os.path.isdir(args.output_dir)) or (
-            len(os.listdir(args.output_dir)) > 0
-        ):
-            raise FileExistsError(
-                "Please provide a path to a non-existing or empty directory. Alternatively, pass the --fresh flag."  # noqa
-            )
+    if args.loop_over_all:
+        ds_names = dataset_names
+        for ds_name in dataset_names:
+            out_dir = os.path.join(args.output_dir, f"glow_{ds_name}")
+            args.dataset = ds_name
+    # out_dir = args.output_dir + '/' + args.dataset
+            os.makedirs(out_dir, exist_ok=True)
+    # try:
+    #     os.makedirs(out_dir)
+    # except FileExistsError:
+    #     if args.fresh:
+    #         shutil.rmtree(out_dir)
+    #         os.makedirs(out_dir)
+    #     if (not os.path.isdir(out_dir)) or (
+    #         len(os.listdir(out_dir)) > 0
+    #     ):
+    #         raise FileExistsError(
+    #             "Please provide a path to a non-existing or empty directory. Alternatively, pass the --fresh flag."  # noqa
+    #         )
 
-    kwargs = vars(args)
-    del kwargs["fresh"]
+            kwargs = vars(args)
+            if "fresh" in kwargs:
+                del kwargs["fresh"]
 
-    with open(os.path.join(args.output_dir, "hparams.json"), "w") as fp:
-        json.dump(kwargs, fp, sort_keys=True, indent=4)
+            with open(os.path.join(out_dir, "hparams.json"), "w") as fp:
+                json.dump(kwargs, fp, sort_keys=True, indent=4)
 
-    train_glow(**kwargs)
+            train_glow(**kwargs)

@@ -481,6 +481,7 @@ if __name__ == "__main__":
 
     if args.loop_over_all:
         ds_names = dataset_names
+        del args.loop_over_all
         for ds_name in dataset_names:
             out_dir = os.path.join(args.output_dir, f"glow_{ds_name}")
             args.dataset = ds_name

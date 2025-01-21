@@ -470,17 +470,17 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--seed", type=int, default=0, help="manual seed")
-
     args = parser.parse_args()
 
+    output_dir = os.path.join(args.output_dir, f"glow_{args.dataset}")
     try:
-        os.makedirs(args.output_dir)
+        os.makedirs(output_dir, exist_ok=True)
     except FileExistsError:
         if args.fresh:
-            shutil.rmtree(args.output_dir)
-            os.makedirs(args.output_dir)
-        if (not os.path.isdir(args.output_dir)) or (
-            len(os.listdir(args.output_dir)) > 0
+            shutil.rmtree(output_dir)
+            os.makedirs(output_dir)
+        if (not os.path.isdir(output_dir)) or (
+            len(os.listdir(output_dir)) > 0
         ):
             raise FileExistsError(
                 "Please provide a path to a non-existing or empty directory. Alternatively, pass the --fresh flag."  # noqa
@@ -489,7 +489,7 @@ if __name__ == "__main__":
     kwargs = vars(args)
     del kwargs["fresh"]
 
-    with open(os.path.join(args.output_dir, "hparams.json"), "w") as fp:
+    with open(os.path.join(output_dir, "hparams.json"), "w") as fp:
         json.dump(kwargs, fp, sort_keys=True, indent=4)
 
     train_glow(**kwargs)

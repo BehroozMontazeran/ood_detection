@@ -1,8 +1,8 @@
-"""General training script for all models and datasets."""
 import argparse
 import json
 import shutil
 from os import path, makedirs
+from multiprocessing import Process
 
 from models.glow_model.train import train_glow  # , train_vae, train_diffusion
 from utilities.routes import OUTPUT_DIR, DATAROOT, PathCreator
@@ -12,34 +12,52 @@ from utilities.utils import to_dataset_wrapper
 def setup_output_dir(output_dir, fresh=False):
     """Set up the output directory."""
     try:
-        makedirs(output_dir, exist_ok=fresh)
+        makedirs(output_dir, exist_ok=True)
         if fresh and path.isdir(output_dir):
             shutil.rmtree(output_dir)
             makedirs(output_dir)
     except FileExistsError as exc:
         raise FileExistsError("Provide a non-existing or empty directory. Use --fresh to overwrite.") from exc
 
+
 def save_hyperparameters(output_dir, kwarg):
     """Save hyperparameters as JSON."""
-    with open(path.join(output_dir, "hparams.json"), "w", encoding='utf-8') as fp:
+    with open(path.join(output_dir, "hparams.json"), "w", encoding="utf-8") as fp:
         json.dump(kwarg, fp, sort_keys=True, indent=4)
+
 
 def train_model(model_type, **kwargs_):
     """Train a model with specified type on the selected dataset."""
     if model_type == "glow":
         train_glow(**kwargs_)
-    # elif model_type == "vae":
-    #     train_vae(**kwargs)
-    # elif model_type == "diffusion":
-    #     train_diffusion(**kwargs)
     else:
         raise ValueError(f"Unknown model type: {model_type}")
+
+
+def train_on_dataset(dataset_name, model_type, kwargs, fresh_arg, path_creator):
+    """Train a single dataset-model combination."""
+    # Create a unique sub-directory for each dataset-model combination
+    dataset_output_dir = path_creator.model_dataset_path(model_type, dataset_name)
+    setup_output_dir(dataset_output_dir, fresh_arg)
+
+    # Prepare dataset-specific arguments
+    kwargs["dataset"] = dataset_name
+    kwargs["output_dir"] = dataset_output_dir
+
+    # Save hyperparameters
+    save_hyperparameters(dataset_output_dir, kwargs)
+
+    # Call train_model for each model-dataset combo
+    print(f"Training {model_type} on {dataset_name}...")
+    train_model(model_type, **kwargs)
+
 
 if __name__ == "__main__":
     path_creator = PathCreator()
     parser = argparse.ArgumentParser()
 
     # General arguments
+    parser.add_argument("--parallel", action="store_true", help="Train datasets in parallel using multiple processes")
     parser.add_argument("--dataset", type=str, default="", choices=to_dataset_wrapper.keys(), help="Dataset type")
     parser.add_argument("--dataroot", type=str, default=DATAROOT, help="Path to datasets root directory")
     parser.add_argument("--download", action="store_true", help="Download dataset if needed")
@@ -76,30 +94,31 @@ if __name__ == "__main__":
     parser.add_argument("--saved_model", default="", help="Path to model to load for continuing training")
     parser.add_argument("--saved_optimizer", default="", help="Path to optimizer to load for continuing training")
 
+
+
     #TODO: Add model-specific arguments for VAE and Diffusion
 
 
     args = parser.parse_args()
     kwargs = vars(args)
-    model_type_arg = kwargs.pop("model_type")  # Remove model_type from kwargs
-    fresh_arg = kwargs.pop("fresh")  # Remove fresh from kwargs
+    model_type_arg = kwargs.pop("model_type")
+    fresh_arg = kwargs.pop("fresh")
+    parallel_mode = kwargs.pop("parallel")
 
     # Set up the output directory
-    setup_output_dir(args.output_dir, fresh_arg)
+    # setup_output_dir(args.output_dir, fresh_arg)
 
-    # Loop over all datasets and models
-    for dataset_name in to_dataset_wrapper.keys():
-        # Create a unique sub-directory for each dataset-model combination
-        dataset_output_dir = path_creator.model_dataset_path(model_type_arg, dataset_name)
-        setup_output_dir(dataset_output_dir, fresh_arg)
-        
-        # Prepare dataset-specific arguments
-        kwargs["dataset"] = dataset_name
-        kwargs["output_dir"] = dataset_output_dir
+    if parallel_mode:
+        # Train datasets in parallel using multiprocessing
+        processes = []
+        for dataset_name in to_dataset_wrapper.keys():
+            process = Process(target=train_on_dataset, args=(dataset_name, model_type_arg, kwargs, fresh_arg, path_creator))
+            processes.append(process)
+            process.start()
 
-        # Save hyperparameters
-        save_hyperparameters(dataset_output_dir, kwargs)
-
-        # Call train_model for each model-dataset combo
-        print(f"Training {model_type_arg} on {dataset_name}...")
-        train_model(model_type_arg, **kwargs)
+        for process in processes:
+            process.join()
+    else:
+        # Train datasets sequentially
+        for dataset_name in to_dataset_wrapper.keys():
+            train_on_dataset(dataset_name, model_type_arg, kwargs, fresh_arg, path_creator)

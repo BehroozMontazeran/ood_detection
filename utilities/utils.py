@@ -7,10 +7,7 @@ import torch
 from data.datasets import (CelebAWrapper, CIFAR10Wrapper, FashionMNISTWrapper,
                            FlippedOmniglotWrapper, GTSRBWrapper,
                            ImageNet32Wrapper, MNISTWrapper, OmniglotWrapper,
-                           SVHNWrapper)#, MixedWrapper)
-                        #  get_celeba, get_cifar10,
-                        #    get_fashionmnist, get_flipped_omniglot,
-                        #    get_imagenet32, get_mnist, get_omniglot, get_svhn)
+                           SVHNWrapper, KMNISTWrapper)
 from utilities.routes import PROJECT_ROOT
 
 # Dict that maps name string -> DataSetWrapper for the given datasets.
@@ -18,21 +15,26 @@ from utilities.routes import PROJECT_ROOT
 to_dataset_wrapper = {
     DS_Wrapper.name: DS_Wrapper for DS_Wrapper in
     [
-        # MixedWrapper,
         ImageNet32Wrapper,
         SVHNWrapper,
         CelebAWrapper,
         CIFAR10Wrapper,
         GTSRBWrapper,
-        # MNISTWrapper,
-        # FashionMNISTWrapper,
-        # OmniglotWrapper,
-        # FlippedOmniglotWrapper
+    ]
+}
+dataset_names_ch3 = set(sorted(to_dataset_wrapper.keys()))
+
+to_dataset_wrapper = {
+    DS_Wrapper.name: DS_Wrapper for DS_Wrapper in
+    [
+        MNISTWrapper,
+        FashionMNISTWrapper,
+        OmniglotWrapper,
+        KMNISTWrapper,
     ]
 }
 
-
-dataset_names = set(sorted(to_dataset_wrapper.keys()))
+dataset_names_ch1 = set(sorted(to_dataset_wrapper.keys()))
 
 
 def get_image_shape(dataset_name):
@@ -55,88 +57,6 @@ def get_dataset(dataset_name, split="test"):
 
 svhn_path = "SVHN"
 cifar_path = "CIFAR10"
-
-
-def get_vanilla_dataset(dataset_name, return_test=True, dataroot=PROJECT_ROOT):
-    warnings.warn("DEPRECATED. Use  instead.", DeprecationWarning)
-
-    dataset_getter = {
-        "cifar": get_cifar10,
-        "svhn": get_svhn,
-        "celeba": get_celeba,
-        "imagenet32": get_imagenet32,
-        "FashionMNIST": get_fashionmnist,
-        "MNIST": get_mnist,
-        "Omniglot": get_omniglot,
-        "flipped_Omniglot": get_flipped_omniglot,
-    }[dataset_name]
-
-    if dataset_name in ["cifar", "svhn"]:
-        _, _, train, test = dataset_getter(False, dataroot, True)
-    else:
-        _, _, train, test = dataset_getter(dataroot)
-
-    if return_test:
-        return test
-    else:
-        return train
-
-
-# TODO: depricated functions here
-
-
-def vanilla_test_cifar(dataroot="../"):
-    _, _, _, test_cifar = get_cifar10(False, dataroot, True)
-    return test_cifar
-
-
-def vanilla_test_svhn(dataroot="../"):
-    _, _, _, test_svhn = get_svhn(False, dataroot, True)
-    return test_svhn
-
-
-def vanilla_test_celeba(dataroot="../"):
-    _, _, _, test_celeba = get_celeba(dataroot)
-    return test_celeba
-
-
-def vanilla_test_imagenet32(dataroot="../"):
-    _, _, _, test_imagenet32 = get_imagenet32(dataroot)
-    return test_imagenet32
-
-
-def vanilla_test_FashionMNIST(dataroot="../"):
-    _, _, _, test_FashionMNIST = get_fashionmnist(dataroot)
-    return test_FashionMNIST
-
-
-def vanilla_test_MNIST(dataroot="../"):
-    _, _, _, test_MNIST = get_mnist(dataroot)
-    return test_MNIST
-
-
-def vanilla_test_Omniglot(dataroot="../"):
-    _, _, _, test_Omniglot = get_omniglot(dataroot)
-    return test_Omniglot
-
-
-def vanilla_test_flipped_Omniglot(dataroot="../"):
-    _, _, _, test_flipped_Omniglot = get_flipped_omniglot(dataroot)
-    return test_flipped_Omniglot
-
-
-def get_vanilla_dataset_depreciated(dataset_name, dataroot="../"):
-    warnings.warn("DEPRECATED. Use Imagenet32_Wrapper.get_all instead.", DeprecationWarning)
-    return {
-        "cifar": vanilla_test_cifar,
-        "svhn": vanilla_test_svhn,
-        "celeba": vanilla_test_celeba,
-        "imagenet32": vanilla_test_imagenet32,
-        "FashionMNIST": vanilla_test_FashionMNIST,
-        "MNIST": vanilla_test_MNIST,
-        "Omniglot": vanilla_test_Omniglot,
-        "flipped_Omniglot": vanilla_test_flipped_Omniglot,
-    }[dataset_name](dataroot=dataroot)
 
 
 class SampleDataset:

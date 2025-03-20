@@ -29,8 +29,6 @@ SERIALISED_GRADIENTS_DIR = path.join(GRADIENTS_DIR, "serialised_gradients") # De
 
 PLOTS_DIR = path.join(PROJECT_ROOT, "plots")
 
-# GRADIENTS_DIR = "./anomaly_methods/gradients/serialised_gradients/"
-
 class PathCreator:
     """ Base class for creating paths"""
     def __init__(self):

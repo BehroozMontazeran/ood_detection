@@ -11,7 +11,7 @@ from ood_scores.features.feature_extractors import FeatureExtractor
 from ood_scores.ood_extractors import OODScoresExtractor
 from utilities.plot import process_and_plot
 from utilities.routes import OUTPUT_DIR
-from utilities.utils import dataset_names
+from utilities.utils import dataset_names_ch3, dataset_names_ch1
 
 
 def main():
@@ -27,17 +27,16 @@ def main():
         help="Model type to use for fitting. The model type should be one of ['glow', 'vae', 'diffusion']"
     )
     parser.add_argument(
-        "--fit_dataset",
-        type=str,
-        default="cifar10",  # Default fit dataset
-        choices=dataset_names,#to_dataset_wrapper.keys(),
-        help="Dataset to use for fitting."
-    )
-    parser.add_argument(
         "--num_channels",
         type=int,
         default=3,
+        choices=[1, 3],
         help="Number of channels in the input images."
+    )
+    parser.add_argument(
+        "--fit_dataset",
+        type=str,
+        help="Dataset to use for fitting for 3channels from [cifar10, celeba, imagenet32, gstrb, svhn] and 1channels from [FashionMNIST, MNIST, Omniglot, KMNIST]"
     )
     parser.add_argument(
         "--ood_batch_size",
@@ -65,21 +64,18 @@ def main():
     )
     args = parser.parse_args()
 
-    # load_models = LoadModels()
-    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # Select dataset list based on num_channels
+    dataset_names = dataset_names_ch3 if args.num_channels == 3 else dataset_names_ch1
 
+    # Validate fit_dataset selection
+    if args.fit_dataset not in dataset_names:
+        raise ValueError(f"Invalid fit_dataset '{args.fit_dataset}'. Choose from: {dataset_names}")
 
-    # ood_batch_size = int(args.ood_batch_size)
-    # num_samples = int(args.ood_num_samples)
-    # fit_dataset_name = args.fit_dataset
-    # model_type = args.model_type
-    # plot = args.plot
     loop_over_all = args.loop_over_all
 
     if loop_over_all:
         fit_dataset_names = dataset_names
         for fit_dataset_name in fit_dataset_names:
-            # fit_dataset_names.remove(fit_dataset_name)
             data_path = path.join(OUTPUT_DIR, f"{args.model_type}_{fit_dataset_name}")
             checkpoints = [f for f in listdir(data_path) if f.endswith('.pt')]
             for ood_batch_size in [1, 5]:
@@ -106,7 +102,7 @@ def calculate_results(args, fit_dataset_name=None, data_path=None, ood_batch_siz
     if not checkpoints:
         raise FileNotFoundError(f"No checkpoints found in {data_path}")
     
-    for checkpoint in [checkpoints[49], checkpoints[59], checkpoints[69], checkpoints[79], checkpoints[89], checkpoints[99]]:
+    for checkpoint in [checkpoints[0], checkpoints[-1]]:
         print(f"Using checkpoint: {checkpoint}...\n")
         # Load the model with the fitting dataset
         model, _, fit_test = load_models.glow(checkpoint=checkpoint, fit_dataset_name=fit_dataset_name)
@@ -119,43 +115,17 @@ def calculate_results(args, fit_dataset_name=None, data_path=None, ood_batch_siz
 
         # Fit Gaussians to the log of the gradient features
         means, variances, _ = feature_extractor.fit_gaussians_to_log_features(fit_loader, data_path, ood_batch_size, checkpoint)
-        # fit_test = load_models.load_test_dataset(model_type, 'gtsrb')
         ood_scores_extractor.ood_scores_on_batches(fit_test, ood_batch_size, means, variances, num_samples=num_samples, checkpoint=checkpoint, fit=True)
 
         # Load other dataset_name as test
         dataset_names.remove(fit_dataset_name)
-        # dataset_names.remove('gtsrb')
         test_dataset_names = dataset_names
         # Process OOD scores for each test dataset
         for test_dataset_name in test_dataset_names:
             test_ds = load_models.load_test_dataset(model_type, test_dataset_name)
             ood_scores_extractor.ood_scores_on_batches(test_ds, ood_batch_size, means, variances, num_samples=num_samples, checkpoint=checkpoint, fit=False)
         dataset_names.add(fit_dataset_name)
-        # dataset_names.add('gtsrb')
 
-    # for checkpoint in [checkpoints[0], checkpoints[-1]]:
-    #     print(f"Using checkpoint: {checkpoint}...\n")
-    #     # Load the model with the fitting dataset
-    #     model, _, fit_test = load_models.glow(checkpoint=checkpoint, fit_dataset_name=fit_dataset_name)
-
-    #     feature_extractor = FeatureExtractor(model, device)
-    #     ood_scores_extractor = OODScoresExtractor(model, device)
-
-    #     # DataLoader for the fitting dataset
-    #     fit_loader = DataLoader(fit_test, batch_size=ood_batch_size, shuffle=True)
-
-    #     # Fit Gaussians to the log of the gradient features
-    #     means, variances, _ = feature_extractor.fit_gaussians_to_log_features(fit_loader, data_path, ood_batch_size, checkpoint)
-    #     ood_scores_extractor.ood_scores_on_batches(fit_test, ood_batch_size, means, variances, num_samples=num_samples, checkpoint=checkpoint, fit=True)
-
-    #     # Load other dataset_name as test
-    #     dataset_names.remove(fit_dataset_name)
-    #     test_dataset_names = dataset_names
-    #     # Process OOD scores for each test dataset
-    #     for test_dataset_name in test_dataset_names:
-    #         test_ds = load_models.load_test_dataset(model_type, test_dataset_name)
-    #         ood_scores_extractor.ood_scores_on_batches(test_ds, ood_batch_size, means, variances, num_samples=num_samples, checkpoint=checkpoint, fit=False)
-    #     dataset_names.add(fit_dataset_name)
 
     if plot:
         # Plot Histograms of OOD scores and ROC curves

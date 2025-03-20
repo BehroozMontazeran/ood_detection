@@ -15,11 +15,17 @@ the checkpoints will be created in seperate folder under the name of each datase
 
 ### Extract the OOD Scores based on saved Checkpoints
 
-To extract the OOd Scores based on default settings run the following:
+To extract the OOD Scores based on default settings run the following:
 
 ```bash
 python3 -m main --loop_over_all
 ```
 by which the model would be `glow` and it will loop over all datasets[cifar10, celeba, imagenet32, gstrb, svhn], ood_batch_sizes {1,5} and checkpoints {0, -1}.
 
-At the end of OOD Score calculation the related plots will be saved in each separate folder under the name of `model_dataset_name`.
+and run the following to extract the OOD Scores of one cahnnel datasets
+```bash
+python3 -m main --num_channels 1 --loop_over_all
+```
+by which the model would be `glow` and it will loop over all datasets[FashionMNIST, MNIST, Omniglot, KMNIST], ood_batch_sizes {1,5} and checkpoints {0, -1}.
+
+At the end of OOD Score calculations the related plots will be saved in each separate folder under the name of `model_datasetName`.

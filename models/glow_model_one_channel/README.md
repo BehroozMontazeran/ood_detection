@@ -1,4 +1,5 @@
 # Glow-pytorch
+The Implementation is from https://github.com/GSavathrakis/Glow-pytorch.
 This is a pytorch implementation of the Glow Normalizing Flow model as proposed in the paper "[Glow: Generative Flow
 with Invertible 1×1 Convolutions](https://arxiv.org/abs/1807.03039)" by Kingma et al.
 
